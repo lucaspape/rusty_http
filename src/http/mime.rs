@@ -152,7 +152,13 @@ impl MimeType {
     }
 
     pub fn from_file_path(f: &str) -> MimeType {
-        let t = Path::new(f).extension().unwrap().to_str().unwrap();
+        let extension = Path::new(f).extension();
+
+        if extension == None {
+            return MimeType::OctetStream
+        }
+
+        let t = extension.unwrap().to_str().unwrap();
 
         return match t {
             "aac" => MimeType::Aac,
