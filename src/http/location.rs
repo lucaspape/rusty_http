@@ -1,5 +1,6 @@
 use std::fs::File;
-use std::io::{BufReader, ErrorKind, Read};
+use std::io::{ErrorKind, Read};
+use std::net::TcpStream;
 use crate::http::mime::MimeType;
 use crate::http::request::HTTPRequest;
 use crate::http::status::HTTPStatus;
@@ -19,7 +20,7 @@ impl HTTPLocation {
         }
     }
 
-    pub fn handle_get(&self, request: &HTTPRequest) -> (HTTPStatus, MimeType, Vec<u8>) {
+    pub fn handle_get(&self, mut stream: Option<TcpStream>, request: &HTTPRequest, write_header: fn(TcpStream, HTTPStatus, MimeType, usize) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
         let mut path = String::from(&*request.path);
 
         if path.starts_with(&*self.path) {
@@ -30,21 +31,39 @@ impl HTTPLocation {
 
         let file = File::open(&*file_path);
 
-        return match file {
-            Ok(file) => {
-                let mut reader = BufReader::new(file);
-                let mut buffer = Vec::new();
-                let result = reader.read_to_end(&mut buffer);
+        match file {
+            Ok(mut file) => {
+                let len = file.metadata().unwrap().len();
+                stream = write_header(stream.unwrap(), HTTPStatus::OK, MimeType::from_file_path(file_path.as_str()), len as usize);
 
-                match result {
-                    Ok(_) => {
-                        (HTTPStatus::OK, MimeType::from_file_path(file_path.as_str()), buffer)
-                    }
+                if let None = stream {
+                    return stream;
+                }
 
-                    Err(error) => {
-                        println!("{}", error);
+                const BUFFER_LEN: usize = 1024 * 1000;
 
-                        (HTTPStatus::InternalServerError, MimeType::Plain, Vec::from(String::from("Internal Server Error").as_bytes()))
+                let mut buffer = [0u8; BUFFER_LEN];
+
+                loop {
+                    let read = file.read(&mut buffer);
+
+                    match read {
+                        Ok(read_count) => {
+                            stream = write_bytes(stream.unwrap(), Vec::from(buffer));
+
+                            if let None = stream {
+                                return stream;
+                            }
+
+                            if read_count != BUFFER_LEN {
+                                break;
+                            }
+                        },
+                        Err(error) => {
+                            println!("{}", error);
+
+                            return None;
+                        }
                     }
                 }
             }
@@ -52,15 +71,33 @@ impl HTTPLocation {
             Err(error) => {
                 match error.kind() {
                     ErrorKind::NotFound => {
-                        (HTTPStatus::NotFound, MimeType::Plain, Vec::from(String::from("No such file or directory").as_bytes()))
+                        let msg = "No such file or directory";
+
+                        stream = write_header(stream.unwrap(), HTTPStatus::NotFound, MimeType::Plain, msg.len());
+
+                        if let None = stream {
+                            return stream;
+                        }
+
+                        stream = write_bytes(stream.unwrap(), Vec::from(msg.as_bytes()));
                     }
                     _ => {
                         println!("{}", error);
 
-                        (HTTPStatus::InternalServerError, MimeType::Plain, Vec::from(String::from("Internal Server Error").as_bytes()))
+                        let msg = "Internal Server Error";
+
+                        stream = write_header(stream.unwrap(), HTTPStatus::InternalServerError, MimeType::Plain, msg.len());
+
+                        if let None = stream {
+                            return stream;
+                        }
+
+                        stream = write_bytes(stream.unwrap(), Vec::from(msg.as_bytes()));
                     }
                 }
             }
         };
+
+        return stream;
     }
 }

@@ -1,3 +1,4 @@
+use std::net::TcpStream;
 use crate::http::location::HTTPLocation;
 use crate::http::mime::MimeType;
 use crate::http::request::{HTTPMethod, HTTPRequest};
@@ -19,7 +20,7 @@ impl HTTPHost {
         }
     }
 
-    pub fn handle_request(&self, request: &HTTPRequest) -> (HTTPStatus, MimeType, Vec<u8>) {
+    pub fn handle_request(&self, mut stream: Option<TcpStream>, request: &HTTPRequest, write_header: fn(TcpStream, HTTPStatus, MimeType, usize) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
         let mut location: Option<&HTTPLocation> = None;
         let mut responsibility = 0;
 
@@ -35,13 +36,24 @@ impl HTTPHost {
         }
 
         if location == None {
-            return (NotFound, MimeType::Plain, Vec::from(String::from("no location").as_bytes()));
+            let msg = "no location";
+
+            stream = write_header(stream.unwrap(), NotFound, MimeType::Plain, msg.len());
+
+            if let None = stream {
+                return stream;
+            }
+
+            stream = write_bytes(stream.unwrap(), Vec::from(String::from("no location").as_bytes()));
+            return stream;
         }
 
-        return match request.method {
+        match request.method {
             HTTPMethod::GET => {
-                location.unwrap().handle_get(&request)
+                stream = location.unwrap().handle_get(stream, &request, write_header, write_bytes)
             }
         }
+
+        return stream;
     }
 }

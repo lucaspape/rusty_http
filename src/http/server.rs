@@ -70,32 +70,45 @@ impl HTTPServer {
             host = Some(&default_host);
         }
 
-        let (status, content_type, content) = host.unwrap().handle_request(&request);
-        stream = Self::send_response(stream, status, content_type, content);
+        let stream = host.unwrap().handle_request(Some(stream), &request, Self::write_header, Self::write_bytes);
+
+        if let None = stream {
+            return;
+        }
+
+        let mut stream = stream.unwrap();
+        stream.flush().unwrap();
 
         if request.connection == KeepAlive {
             HTTPServer::handle_stream(stream, default_host, hosts);
         }
     }
 
-    fn send_response(mut stream: TcpStream, status: HTTPStatus, content_type: MimeType, content: Vec<u8>) -> TcpStream {
+    fn write_header(stream: TcpStream, status: HTTPStatus, content_type: MimeType, content_length: usize) -> Option<TcpStream> {
         let (status_code, status_name) = status.get();
         let content_type_name = content_type.get();
-
-        let content_length = content.len();
 
         let header_status = format!("HTTP/1.1 {} {}", status_code, status_name);
         let header_content_length = format!("Content-Length: {content_length}");
         let header_content_type = format!("Content-Type: {content_type_name}");
 
-        let mut response = Vec::from(format!(
-            "{header_status}\r\n{header_content_length}\r\n{header_content_type}\r\n\r\n"
-        ).as_bytes());
+        let header = Vec::from(format!(
+            "{header_status}\r\n{header_content_length}\r\n{header_content_type}\r\n\r\n"));
 
-        response.extend(content);
 
-        stream.write_all(&response[..]).unwrap();
+        return Self::write_bytes(stream, header);
+    }
 
-        return stream;
+    fn write_bytes(mut stream: TcpStream, b: Vec<u8>) -> Option<TcpStream> {
+        return match stream.write(&b[..]) {
+            Ok(_) => {
+                Some(stream)
+            }
+            Err(_) => {
+                let _ = stream.shutdown(Both);
+
+                None
+            }
+        }
     }
 }
