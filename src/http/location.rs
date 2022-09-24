@@ -1,12 +1,13 @@
-use std::fs;
-use std::io::ErrorKind;
+use std::fs::File;
+use std::io::{BufReader, ErrorKind, Read};
+use crate::http::mime::MimeType;
 use crate::http::request::HTTPRequest;
 use crate::http::status::HTTPStatus;
 
 #[derive(Clone)]
 #[derive(PartialEq)]
 pub struct HTTPLocation {
-    path: String,
+    pub path: String,
     root: String
 }
 
@@ -18,32 +19,45 @@ impl HTTPLocation {
         }
     }
 
-    pub fn responsible(&self, path: &str) -> i32 {
-        return if path.starts_with(self.path.as_str()) {
-            path.replace(self.path.as_str(), "").len() as i32
-        } else {
-            -1
+    pub fn handle_get(&self, request: &HTTPRequest) -> (HTTPStatus, MimeType, Vec<u8>) {
+        let mut path = String::from(&*request.path);
+
+        if path.starts_with(&*self.path) {
+            path = path.replace(&*self.path, "");
         }
-    }
 
-    pub fn handle_get(&self, request: &HTTPRequest) -> (HTTPStatus, String) {
-        let path = String::from(&self.root) + &*request.path;
+        let file_path = String::from(self.root.as_str()) + path.as_str();
 
-        let content = fs::read_to_string(path);
+        let file = File::open(&*file_path);
 
-        return match content {
-            Ok(content) => {
-                (HTTPStatus::OK, content)
+        return match file {
+            Ok(file) => {
+                let mut reader = BufReader::new(file);
+                let mut buffer = Vec::new();
+                let result = reader.read_to_end(&mut buffer);
+
+                match result {
+                    Ok(_) => {
+                        (HTTPStatus::OK, MimeType::from_file_path(file_path.as_str()), buffer)
+                    }
+
+                    Err(error) => {
+                        println!("{}", error);
+
+                        (HTTPStatus::InternalServerError, MimeType::Plain, Vec::from(String::from("Internal Server Error").as_bytes()))
+                    }
+                }
             }
+
             Err(error) => {
                 match error.kind() {
                     ErrorKind::NotFound => {
-                        (HTTPStatus::NotFound, String::from("No such file or directory"))
+                        (HTTPStatus::NotFound, MimeType::Plain, Vec::from(String::from("No such file or directory").as_bytes()))
                     }
                     _ => {
                         println!("{}", error);
 
-                        (HTTPStatus::InternalServerError, String::from("Internal Server Error"))
+                        (HTTPStatus::InternalServerError, MimeType::Plain, Vec::from(String::from("Internal Server Error").as_bytes()))
                     }
                 }
             }

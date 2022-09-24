@@ -7,22 +7,11 @@
         "locations": [
           {
             "path": "/",
-            "root": "html/"
-          }
-        ]
-      },
-      "hosts": [
-
-      ]
-    },
-    {
-      "bind": "127.0.0.1:8081",
-      "default_host": {
-        "server_name": "default",
-        "locations": [
+            "root": "html/root/"
+          },
           {
-            "path": "/",
-            "root": "html/"
+            "path": "/test/",
+            "root": "html/test2/"
           }
         ]
       },

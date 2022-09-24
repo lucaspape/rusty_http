@@ -4,6 +4,7 @@ use std::net::{TcpListener, TcpStream};
 use std::net::Shutdown::Both;
 
 use crate::http::host::HTTPHost;
+use crate::http::mime::MimeType;
 use crate::http::request::{HTTPRequest};
 use crate::http::request::HTTPConnection::KeepAlive;
 use crate::http::status::HTTPStatus;
@@ -69,29 +70,31 @@ impl HTTPServer {
             host = Some(&default_host);
         }
 
-        let (status, content) = host.unwrap().handle_request(&request);
-        stream = Self::send_response(stream, status, content.as_str());
+        let (status, content_type, content) = host.unwrap().handle_request(&request);
+        stream = Self::send_response(stream, status, content_type, content);
 
         if request.connection == KeepAlive {
             HTTPServer::handle_stream(stream, default_host, hosts);
         }
     }
 
-    fn send_response(mut stream: TcpStream, status: HTTPStatus, content: &str) -> TcpStream {
+    fn send_response(mut stream: TcpStream, status: HTTPStatus, content_type: MimeType, content: Vec<u8>) -> TcpStream {
         let (status_code, status_name) = status.get();
+        let content_type_name = content_type.get();
+
         let content_length = content.len();
 
         let header_status = format!("HTTP/1.1 {} {}", status_code, status_name);
         let header_content_length = format!("Content-Length: {content_length}");
+        let header_content_type = format!("Content-Type: {content_type_name}");
 
-        let response = format!(
-            "{header_status}\r\n\
-             {header_content_length}\r\n\r\n\
-             {content}
-            "
-        );
+        let mut response = Vec::from(format!(
+            "{header_status}\r\n{header_content_length}\r\n{header_content_type}\r\n\r\n"
+        ).as_bytes());
 
-        stream.write_all(response.as_bytes()).unwrap();
+        response.extend(content);
+
+        stream.write_all(&response[..]).unwrap();
 
         return stream;
     }
