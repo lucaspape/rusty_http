@@ -1,6 +1,7 @@
 use std::fs::File;
-use std::io::{ErrorKind, Read};
+use std::io::{BufRead, BufReader};
 use std::net::TcpStream;
+use std::path::Path;
 use crate::http::mime::MimeType;
 use crate::http::request::HTTPRequest;
 use crate::http::status::HTTPStatus;
@@ -29,10 +30,38 @@ impl HTTPLocation {
 
         let file_path = String::from(self.root.as_str()) + path.as_str();
 
+        let path = Path::new(file_path.as_str());
+
+        if !path.exists() {
+            let msg = "No such file or directory";
+
+            stream = write_header(stream.unwrap(), HTTPStatus::NotFound, MimeType::Plain, msg.len());
+
+            if let None = stream {
+                return stream;
+            }
+
+            stream = write_bytes(stream.unwrap(), Vec::from(msg.as_bytes()));
+            return stream;
+        }
+
+        if !path.is_file() {
+            let msg = "Is not a file";
+
+            stream = write_header(stream.unwrap(), HTTPStatus::NotFound, MimeType::Plain, msg.len());
+
+            if let None = stream {
+                return stream;
+            }
+
+            stream = write_bytes(stream.unwrap(), Vec::from(msg.as_bytes()));
+            return stream;
+        }
+
         let file = File::open(&*file_path);
 
         match file {
-            Ok(mut file) => {
+            Ok(file) => {
                 let len = file.metadata().unwrap().len();
                 stream = write_header(stream.unwrap(), HTTPStatus::OK, MimeType::from_file_path(file_path.as_str()), len as usize);
 
@@ -40,61 +69,49 @@ impl HTTPLocation {
                     return stream;
                 }
 
-                const BUFFER_LEN: usize = 1024 * 1000;
-
-                let mut buffer = [0u8; BUFFER_LEN];
+                const CAP: usize = 1024 * 128;
+                let mut reader = BufReader::with_capacity(CAP, file);
 
                 loop {
-                    let read = file.read(&mut buffer);
+                    let length = {
+                        match reader.fill_buf() {
+                            Ok(buffer) => {
+                                stream = write_bytes(stream.unwrap(), Vec::from(buffer));
 
-                    match read {
-                        Ok(read_count) => {
-                            stream = write_bytes(stream.unwrap(), Vec::from(buffer));
+                                if let None = stream {
+                                    return stream;
+                                }
 
-                            if let None = stream {
-                                return stream;
+                                buffer.len()
                             }
 
-                            if read_count != BUFFER_LEN {
-                                break;
-                            }
-                        },
-                        Err(error) => {
-                            println!("{}", error);
+                            Err(error) => {
+                                println!("{}", error);
 
-                            return None;
+                                return None;
+                            }
                         }
+                    };
+
+                    if length == 0 {
+                        break;
                     }
+                    reader.consume(length);
                 }
             }
 
             Err(error) => {
-                match error.kind() {
-                    ErrorKind::NotFound => {
-                        let msg = "No such file or directory";
+                println!("{}", error);
 
-                        stream = write_header(stream.unwrap(), HTTPStatus::NotFound, MimeType::Plain, msg.len());
+                let msg = "Internal Server Error";
 
-                        if let None = stream {
-                            return stream;
-                        }
+                stream = write_header(stream.unwrap(), HTTPStatus::InternalServerError, MimeType::Plain, msg.len());
 
-                        stream = write_bytes(stream.unwrap(), Vec::from(msg.as_bytes()));
-                    }
-                    _ => {
-                        println!("{}", error);
-
-                        let msg = "Internal Server Error";
-
-                        stream = write_header(stream.unwrap(), HTTPStatus::InternalServerError, MimeType::Plain, msg.len());
-
-                        if let None = stream {
-                            return stream;
-                        }
-
-                        stream = write_bytes(stream.unwrap(), Vec::from(msg.as_bytes()));
-                    }
+                if let None = stream {
+                    return stream;
                 }
+
+                stream = write_bytes(stream.unwrap(), Vec::from(msg.as_bytes()));
             }
         };
 
