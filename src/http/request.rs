@@ -38,7 +38,7 @@ impl HTTPRequest {
         let mut accept: String = String::from("");
         let mut accept_language: String = String::from("");
         let mut accept_encoding: String = String::from("");
-        let mut connection: HTTPConnection = HTTPConnection::KeepAlive;
+        let mut connection: HTTPConnection = HTTPConnection::Die;
         let mut referer: String = String::from("");
 
         for (i, l) in r.iter().enumerate() {
@@ -76,7 +76,7 @@ impl HTTPRequest {
                 } else if l.starts_with(header_accept_encoding) {
                     accept_encoding = l.replace(header_accept_encoding, "");
                 } else if l.starts_with(header_connection) {
-                    match l.replace(header_connection, "").as_str() {
+                    match l.replace(header_connection, "").to_lowercase().as_str() {
                         "keep-alive" => {
                             connection = HTTPConnection::KeepAlive
                         },
@@ -112,13 +112,15 @@ impl fmt::Debug for HTTPRequest {
 
 #[derive(PartialEq)]
 pub enum HTTPConnection {
-    KeepAlive
+    KeepAlive,
+    Die
 }
 
 impl fmt::Debug for HTTPConnection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             HTTPConnection::KeepAlive => write!(f, "Keep-Alive"),
+            HTTPConnection::Die => write!(f, "Die"),
         }
     }
 }
