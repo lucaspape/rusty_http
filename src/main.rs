@@ -1,6 +1,7 @@
 extern crate core;
 
 use std::thread;
+use std::time::Duration;
 use crate::config::RustyHTTPConfig;
 use crate::http::host::HTTPHost;
 use crate::http::location::HTTPLocation;
@@ -44,6 +45,6 @@ fn main() {
     }
 
     loop {
-
+        thread::sleep(Duration::from_secs(60));
     }
 }
