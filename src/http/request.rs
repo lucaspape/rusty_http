@@ -30,6 +30,8 @@ impl HTTPRequest {
     }
 
     pub fn parse(r: Vec<String>) -> HTTPRequest {
+        println!("{:?}", r);
+
         let mut method: Option<HTTPMethod> = None;
         let mut path: Option<String> = None;
         let mut http_version: Option<String> = None;
