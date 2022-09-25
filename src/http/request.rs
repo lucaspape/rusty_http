@@ -10,11 +10,23 @@ pub struct HTTPRequest {
     pub accept_language: String,
     pub accept_encoding: String,
     pub connection: HTTPConnection,
-    pub referer: String
+    pub referer: String,
+    pub if_modified_since: String
 }
 
 impl HTTPRequest {
-    pub fn new(method: HTTPMethod, path: String, http_version: String, host: String, user_agent: String, accept: String, accept_language: String, accept_encoding: String, connection: HTTPConnection, referer: String) -> HTTPRequest {
+    pub fn new(method: HTTPMethod,
+               path: String,
+               http_version: String,
+               host: String,
+               user_agent: String,
+               accept: String,
+               accept_language: String,
+               accept_encoding: String,
+               connection: HTTPConnection,
+               referer: String,
+               if_modified_since: String
+    ) -> HTTPRequest {
         return HTTPRequest{
             method,
             path,
@@ -25,7 +37,8 @@ impl HTTPRequest {
             accept_language,
             accept_encoding,
             connection,
-            referer
+            referer,
+            if_modified_since
         }
     }
 
@@ -42,6 +55,7 @@ impl HTTPRequest {
         let mut accept_encoding: String = String::from("");
         let mut connection: HTTPConnection = HTTPConnection::Close;
         let mut referer: String = String::from("");
+        let mut if_modified_since: String = String::from("");
 
         for (i, l) in r.iter().enumerate() {
             if i == 0 {
@@ -66,6 +80,7 @@ impl HTTPRequest {
                 let header_accept_encoding = "Accept-Encoding: ";
                 let header_connection = "Connection: ";
                 let header_referer = "Referer: ";
+                let header_if_modified_since = "If-Modified-Since: ";
 
                 if l.starts_with(header_host) {
                     host = Some(l.replace(header_host, ""));
@@ -89,11 +104,23 @@ impl HTTPRequest {
                     }
                 } else if l.starts_with(header_referer) {
                     referer = l.replace(header_referer, "");
+                } else if l.starts_with(header_if_modified_since) {
+                    if_modified_since = l.replace(header_if_modified_since, "");
                 }
             }
         }
 
-        return HTTPRequest::new(method.unwrap(), path.unwrap(), http_version.unwrap(), host.unwrap(), user_agent, accept, accept_language, accept_encoding, connection, referer);
+        return HTTPRequest::new(
+            method.unwrap(),
+            path.unwrap(),
+            http_version.unwrap(),
+            host.unwrap(),
+            user_agent, accept,
+            accept_language,
+            accept_encoding,
+            connection,
+            referer,
+            if_modified_since);
     }
 }
 

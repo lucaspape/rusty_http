@@ -66,16 +66,40 @@ impl HTTPLocation {
                 stream
             }
         } else {
-            self.send_file(stream, file_path.as_str(), write_header, write_bytes)
+            self.send_file(stream, request, file_path.as_str(), write_header, write_bytes)
         }
     }
 
-    fn send_file(&self, mut stream: Option<TcpStream>, file_path: &str, write_header: fn(TcpStream, HTTPStatus, MimeType, usize) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
+    fn send_file(&self, mut stream: Option<TcpStream>, request: &HTTPRequest, file_path: &str, write_header: fn(TcpStream, HTTPStatus, MimeType, usize) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
         let file = File::open(&*file_path);
 
         match file {
             Ok(file) => {
-                let len = file.metadata().unwrap().len();
+                let metadata = file.metadata().unwrap();
+
+                if request.if_modified_since.len() > 0 {
+                    let modified: DateTime<Utc> = metadata.modified().unwrap().into();
+
+                    match DateTime::parse_from_rfc2822(request.if_modified_since.as_str()) {
+                        Ok(modified_since) => {
+                            if modified.timestamp() < modified_since.timestamp() {
+                                let msg = "Not Modified";
+
+                                stream = write_header(stream.unwrap(), HTTPStatus::NotModified, MimeType::Plain, msg.len() as usize);
+
+                                if let None = stream {
+                                    return stream;
+                                }
+
+                                stream = write_bytes(stream.unwrap(), Vec::from(msg.as_bytes()));
+                                return stream
+                            }
+                        },
+                        Err(_) => {}
+                    }
+                }
+
+                let len = metadata.len();
                 stream = write_header(stream.unwrap(), HTTPStatus::OK, MimeType::from_file_path(file_path), len as usize);
 
                 if let None = stream {
@@ -202,7 +226,7 @@ impl HTTPLocation {
 
             let metadata = path.metadata().unwrap();
 
-            let created: DateTime<Utc> = metadata.created().unwrap().into();
+            let created: DateTime<Utc> = metadata.modified().unwrap().into();
             index += created.format("%Y-%m-%d %T").to_string().as_str();
 
             index += "</td>\n";
