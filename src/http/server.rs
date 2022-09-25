@@ -43,13 +43,27 @@ impl HTTPServer {
     fn handle_stream(mut stream: TcpStream, default_host: HTTPHost,hosts: Vec<HTTPHost>) {
         let buf_reader = BufReader::new(&mut stream);
 
-        let r: Vec<_> = buf_reader
-            .lines()
-            .map(|result| result.unwrap())
-            .take_while(|line| !line.is_empty())
-            .collect();
+        let lines = buf_reader.lines();
 
-        if r.len() == 0 {
+        let mut closed = false;
+
+        let r: Vec<_> =
+            lines
+                .map(|result| {
+                    return match result {
+                        Ok(result) => {
+                            result
+                        },
+                        Err(_) => {
+                            closed = true;
+                            String::from("")
+                        }
+                    }
+                })
+                .take_while(|line| !line.is_empty())
+                .collect();
+
+        if r.len() == 0 || closed {
             let _ = stream.shutdown(Both);
 
             return;
