@@ -19,7 +19,13 @@ fn main() {
         let mut default_host_locations: Vec<HTTPLocation> = Vec::new();
 
         for l in s.default_host.locations.iter() {
-            default_host_locations.push(HTTPLocation::new(l.path.as_str(), l.root.as_str()));
+            let mut index = false;
+
+            if l.index != None {
+                index = l.index.unwrap()
+            }
+
+            default_host_locations.push(HTTPLocation::new(l.path.as_str(), l.root.as_str(), index));
         }
 
         let default_host = HTTPHost::new("default", default_host_locations);
@@ -30,7 +36,13 @@ fn main() {
             let mut host_locations: Vec<HTTPLocation> = Vec::new();
 
             for l in h.locations.iter() {
-                host_locations.push(HTTPLocation::new(l.path.as_str(), l.root.as_str()));
+                let mut index = false;
+
+                if l.index != None {
+                    index = l.index.unwrap()
+                }
+
+                host_locations.push(HTTPLocation::new(l.path.as_str(), l.root.as_str(), index));
             }
 
             hosts.push(HTTPHost::new(h.server_name.as_str(), host_locations));
