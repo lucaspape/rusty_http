@@ -138,12 +138,13 @@ impl HTTPLocation {
 
                 let len = metadata.len();
 
+                let mut headers: Vec<String> = Vec::new();
+                headers.push(String::from("Accept-Ranges: bytes"));
+
                 if request.range.len() > 0 {
                     let (s, e) = self.parse_range(request, metadata.len());
                     start = s;
                     end = e;
-
-                    let mut headers: Vec<String> = Vec::new();
 
                     let mut range = String::from("bytes ");
                     range += format!("{}", start).as_str();
@@ -156,7 +157,7 @@ impl HTTPLocation {
 
                     stream = write_header(stream.unwrap(), HTTPStatus::PartialContent, MimeType::from_file_path(file_path), len as usize, Some(headers));
                 }else{
-                    stream = write_header(stream.unwrap(), HTTPStatus::OK, MimeType::from_file_path(file_path), len as usize, None);
+                    stream = write_header(stream.unwrap(), HTTPStatus::OK, MimeType::from_file_path(file_path), len as usize, Some(headers));
                 }
 
                 file.seek(SeekFrom::Start(start)).unwrap();
