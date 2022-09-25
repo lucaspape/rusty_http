@@ -1,6 +1,6 @@
 use std::fs;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::net::TcpStream;
 use std::path::Path;
 use chrono::{DateTime, Utc};
@@ -26,7 +26,7 @@ impl HTTPLocation {
         }
     }
 
-    pub fn handle_get(&self, mut stream: Option<TcpStream>, request: &HTTPRequest, write_header: fn(TcpStream, HTTPStatus, MimeType, usize) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
+    pub fn handle_get(&self, mut stream: Option<TcpStream>, request: &HTTPRequest, write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
         let mut path = String::from(&*request.path);
 
         if path.starts_with(&*self.path) {
@@ -40,7 +40,7 @@ impl HTTPLocation {
         if !path.exists() {
             let msg = "No such file or directory";
 
-            stream = write_header(stream.unwrap(), HTTPStatus::NotFound, MimeType::Plain, msg.len());
+            stream = write_header(stream.unwrap(), HTTPStatus::NotFound, MimeType::Plain, msg.len(), None);
 
             if let None = stream {
                 return stream;
@@ -56,7 +56,7 @@ impl HTTPLocation {
             } else {
                 let msg = "Forbidden";
 
-                stream = write_header(stream.unwrap(), HTTPStatus::NotFound, MimeType::Plain, msg.len());
+                stream = write_header(stream.unwrap(), HTTPStatus::NotFound, MimeType::Plain, msg.len(), None);
 
                 if let None = stream {
                     return stream;
@@ -70,11 +70,27 @@ impl HTTPLocation {
         }
     }
 
-    fn send_file(&self, mut stream: Option<TcpStream>, request: &HTTPRequest, file_path: &str, write_header: fn(TcpStream, HTTPStatus, MimeType, usize) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
+    pub fn handle_head(&self, stream: Option<TcpStream>, request: &HTTPRequest, write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>) -> Option<TcpStream> {
+        return self.handle_get(stream, request, write_header, |_, _| {
+           return None;
+        });
+    }
+
+    fn parse_range(&self, request: &HTTPRequest) -> (u64, u64) {
+        let range = request.range.replacen("byte=", "", 1);
+        let r: Vec<&str> = range.split("-").collect();
+
+        let start: u64 = r[0].parse().unwrap();
+        let end: u64 = r[1].parse().unwrap();
+
+        return (start, end);
+    }
+
+    fn send_file(&self, mut stream: Option<TcpStream>, request: &HTTPRequest, file_path: &str, write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
         let file = File::open(&*file_path);
 
         match file {
-            Ok(file) => {
+            Ok(mut file) => {
                 let metadata = file.metadata().unwrap();
 
                 if request.if_modified_since.len() > 0 {
@@ -85,7 +101,7 @@ impl HTTPLocation {
                             if modified.timestamp() < modified_since.timestamp() {
                                 let msg = "Not Modified";
 
-                                stream = write_header(stream.unwrap(), HTTPStatus::NotModified, MimeType::Plain, msg.len() as usize);
+                                stream = write_header(stream.unwrap(), HTTPStatus::NotModified, MimeType::Plain, msg.len() as usize, None);
 
                                 if let None = stream {
                                     return stream;
@@ -99,8 +115,33 @@ impl HTTPLocation {
                     }
                 }
 
+                let mut start: u64 = 0;
+                let mut end: u64 = metadata.len();
+
                 let len = metadata.len();
-                stream = write_header(stream.unwrap(), HTTPStatus::OK, MimeType::from_file_path(file_path), len as usize);
+
+                if request.range.len() > 0 {
+                    let (s, e) = self.parse_range(request);
+                    start = s;
+                    end = e;
+
+                    let mut headers: Vec<String> = Vec::new();
+
+                    let mut range = String::from("bytes ");
+                    range += format!("{}", start).as_str();
+                    range += "-";
+                    range += format!("{}", end).as_str();
+                    range += "/";
+                    range += format!("{}", len).as_str();
+
+                    headers.push(String::from("Content-Range: ") + range.as_str());
+
+                    stream = write_header(stream.unwrap(), HTTPStatus::PartialContent, MimeType::from_file_path(file_path), len as usize, Some(headers));
+                }else{
+                    stream = write_header(stream.unwrap(), HTTPStatus::OK, MimeType::from_file_path(file_path), len as usize, None);
+                }
+
+                file.seek(SeekFrom::Start(start)).unwrap();
 
                 if let None = stream {
                     return stream;
@@ -108,6 +149,8 @@ impl HTTPLocation {
 
                 const CAP: usize = 1024 * 128;
                 let mut reader = BufReader::with_capacity(CAP, file);
+
+                let mut read: u64 = 0;
 
                 loop {
                     let length = {
@@ -133,6 +176,13 @@ impl HTTPLocation {
                     if length == 0 {
                         break;
                     }
+
+                    read += length as u64;
+
+                    if read >= end {
+                        break;
+                    }
+
                     reader.consume(length);
                 }
             }
@@ -142,7 +192,7 @@ impl HTTPLocation {
 
                 let msg = "Internal Server Error";
 
-                stream = write_header(stream.unwrap(), HTTPStatus::InternalServerError, MimeType::Plain, msg.len());
+                stream = write_header(stream.unwrap(), HTTPStatus::InternalServerError, MimeType::Plain, msg.len(), None);
 
                 if let None = stream {
                     return stream;
@@ -155,7 +205,7 @@ impl HTTPLocation {
         return stream;
     }
 
-    fn send_index(&self, mut stream: Option<TcpStream>, base: &str, path: &str, write_header: fn(TcpStream, HTTPStatus, MimeType, usize) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
+    fn send_index(&self, mut stream: Option<TcpStream>, base: &str, path: &str, write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
         let paths = fs::read_dir(path).unwrap();
 
         let mut index = String::from("<html> \n");
@@ -252,7 +302,7 @@ impl HTTPLocation {
         index += "</body>\n";
         index += "</html>";
 
-        stream = write_header(stream.unwrap(), HTTPStatus::OK, MimeType::Html, index.len());
+        stream = write_header(stream.unwrap(), HTTPStatus::OK, MimeType::Html, index.len(), None);
 
         if let None = stream {
             return stream;

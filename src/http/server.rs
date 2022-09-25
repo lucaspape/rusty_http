@@ -84,7 +84,7 @@ impl HTTPServer {
         }
     }
 
-    fn write_header(stream: TcpStream, status: HTTPStatus, content_type: MimeType, content_length: usize) -> Option<TcpStream> {
+    fn write_header(stream: TcpStream, status: HTTPStatus, content_type: MimeType, content_length: usize, additional: Option<Vec<String>>) -> Option<TcpStream> {
         let (status_code, status_name) = status.get();
         let content_type_name = content_type.get();
 
@@ -92,9 +92,17 @@ impl HTTPServer {
         let header_content_length = format!("Content-Length: {content_length}");
         let header_content_type = format!("Content-Type: {content_type_name}");
 
-        let header = Vec::from(format!(
-            "{header_status}\r\n{header_content_length}\r\n{header_content_type}\r\n\r\n"));
+        let mut header = Vec::from(format!(
+            "{header_status}\r\n{header_content_length}\r\n{header_content_type}\r\n"));
 
+        if additional != None {
+            for h in additional.unwrap().iter() {
+                header.extend(h.bytes());
+                header.extend("\r\n".bytes());
+            }
+        }
+
+        header.extend("\r\n".bytes());
 
         return Self::write_bytes(stream, header);
     }

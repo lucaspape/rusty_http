@@ -11,7 +11,8 @@ pub struct HTTPRequest {
     pub accept_encoding: String,
     pub connection: HTTPConnection,
     pub referer: String,
-    pub if_modified_since: String
+    pub if_modified_since: String,
+    pub range: String
 }
 
 impl HTTPRequest {
@@ -25,7 +26,8 @@ impl HTTPRequest {
                accept_encoding: String,
                connection: HTTPConnection,
                referer: String,
-               if_modified_since: String
+               if_modified_since: String,
+               range: String
     ) -> HTTPRequest {
         return HTTPRequest{
             method,
@@ -38,7 +40,8 @@ impl HTTPRequest {
             accept_encoding,
             connection,
             referer,
-            if_modified_since
+            if_modified_since,
+            range
         }
     }
 
@@ -56,6 +59,7 @@ impl HTTPRequest {
         let mut connection: HTTPConnection = HTTPConnection::Close;
         let mut referer: String = String::from("");
         let mut if_modified_since: String = String::from("");
+        let mut range: String = String::from("");
 
         for (i, l) in r.iter().enumerate() {
             if i == 0 {
@@ -64,6 +68,7 @@ impl HTTPRequest {
                 if components.len() == 3 {
                     match components[0] {
                         "GET" => method = Some(HTTPMethod::GET),
+                        "HEAD" => method = Some(HTTPMethod::HEAD),
                         _ => panic!("unknown http method")
                     }
 
@@ -81,6 +86,7 @@ impl HTTPRequest {
                 let header_connection = "Connection: ";
                 let header_referer = "Referer: ";
                 let header_if_modified_since = "If-Modified-Since: ";
+                let header_range = "Range: ";
 
                 if l.starts_with(header_host) {
                     host = Some(l.replace(header_host, ""));
@@ -106,6 +112,8 @@ impl HTTPRequest {
                     referer = l.replace(header_referer, "");
                 } else if l.starts_with(header_if_modified_since) {
                     if_modified_since = l.replace(header_if_modified_since, "");
+                } else if l.starts_with(header_range) {
+                    range = l.replace(header_range, "");
                 }
             }
         }
@@ -120,7 +128,8 @@ impl HTTPRequest {
             accept_encoding,
             connection,
             referer,
-            if_modified_since);
+            if_modified_since,
+            range);
     }
 }
 
@@ -158,13 +167,15 @@ impl fmt::Debug for HTTPConnection {
 }
 
 pub enum HTTPMethod {
-    GET
+    GET,
+    HEAD
 }
 
 impl fmt::Debug for HTTPMethod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             HTTPMethod::GET => write!(f, "GET"),
+            HTTPMethod::HEAD => write!(f, "HEAD")
         }
     }
 }

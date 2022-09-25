@@ -20,7 +20,7 @@ impl HTTPHost {
         }
     }
 
-    pub fn handle_request(&self, mut stream: Option<TcpStream>, request: &HTTPRequest, write_header: fn(TcpStream, HTTPStatus, MimeType, usize) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
+    pub fn handle_request(&self, mut stream: Option<TcpStream>, request: &HTTPRequest, write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
         let mut location: Option<&HTTPLocation> = None;
         let mut responsibility = 0;
 
@@ -38,7 +38,7 @@ impl HTTPHost {
         if location == None {
             let msg = "no location";
 
-            stream = write_header(stream.unwrap(), NotFound, MimeType::Plain, msg.len());
+            stream = write_header(stream.unwrap(), NotFound, MimeType::Plain, msg.len(), None);
 
             if let None = stream {
                 return stream;
@@ -51,6 +51,9 @@ impl HTTPHost {
         match request.method {
             HTTPMethod::GET => {
                 stream = location.unwrap().handle_get(stream, &request, write_header, write_bytes)
+            },
+            HTTPMethod::HEAD => {
+                stream = location.unwrap().handle_head(stream, &request, write_header)
             }
         }
 
