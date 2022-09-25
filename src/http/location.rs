@@ -92,8 +92,10 @@ impl HTTPLocation {
         }
 
         match r[1].parse() {
-            Ok(start) => {
-                e = start;
+            Ok(end) => {
+                e = end;
+
+                e += 1;
             }
             Err(_) => {
 
