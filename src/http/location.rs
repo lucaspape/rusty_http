@@ -77,7 +77,7 @@ impl HTTPLocation {
     }
 
     fn parse_range(&self, request: &HTTPRequest, len: u64) -> (u64, u64) {
-        let range = request.range.replacen("byte=", "", 1);
+        let range = request.range.replacen("bytes=", "", 1);
         let r: Vec<&str> = range.split("-").collect();
 
         let mut s: u64 = 0;
@@ -88,7 +88,6 @@ impl HTTPLocation {
                 s = start;
             }
             Err(_) => {
-
             }
         }
 
@@ -108,7 +107,7 @@ impl HTTPLocation {
         let file = File::open(&*file_path);
 
         match file {
-            Ok(mut file) => {
+            Ok(file) => {
                 let metadata = file.metadata().unwrap();
 
                 if request.if_modified_since.len() > 0 {
@@ -155,12 +154,10 @@ impl HTTPLocation {
 
                     headers.push(String::from("Content-Range: ") + range.as_str());
 
-                    stream = write_header(stream.unwrap(), HTTPStatus::PartialContent, MimeType::from_file_path(file_path), (start-end) as usize, Some(headers));
+                    stream = write_header(stream.unwrap(), HTTPStatus::PartialContent, MimeType::from_file_path(file_path), (end-start) as usize, Some(headers));
                 }else{
                     stream = write_header(stream.unwrap(), HTTPStatus::OK, MimeType::from_file_path(file_path), len as usize, Some(headers));
                 }
-
-                file.seek(SeekFrom::Start(start)).unwrap();
 
                 if let None = stream {
                     return stream;
@@ -168,8 +165,9 @@ impl HTTPLocation {
 
                 const CAP: usize = 1024 * 128;
                 let mut reader = BufReader::with_capacity(CAP, file);
+                reader.seek(SeekFrom::Start(start)).unwrap();
 
-                let mut read: u64 = 0;
+                let mut read: u64 = start;
 
                 loop {
                     let length = {
