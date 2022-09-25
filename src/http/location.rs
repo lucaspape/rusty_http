@@ -1,10 +1,9 @@
-use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::net::TcpStream;
 use std::path::Path;
 use chrono::{DateTime, Utc};
-use humansize::{DECIMAL, format_size};
+use crate::http::index::generate_index;
 use crate::http::mime::MimeType;
 use crate::http::request::HTTPRequest;
 use crate::http::status::HTTPStatus;
@@ -95,6 +94,7 @@ impl HTTPLocation {
             Ok(end) => {
                 e = end;
 
+                //TODO this a fix for safari, needs to be checked
                 e += 1;
             }
             Err(_) => {
@@ -105,105 +105,126 @@ impl HTTPLocation {
         return (s, e);
     }
 
+    fn not_modified_since(&self, request: &HTTPRequest, file: &File) -> bool {
+        let metadata = file.metadata().unwrap();
+
+        if request.if_modified_since.len() > 0 {
+            let modified: DateTime<Utc> = metadata.modified().unwrap().into();
+
+            match DateTime::parse_from_rfc2822(request.if_modified_since.as_str()) {
+                Ok(modified_since) => {
+                    return modified.timestamp() < modified_since.timestamp();
+                },
+                Err(_) => {}
+            }
+        }
+
+        return false;
+    }
+
+    fn read_file(&self, mut stream: Option<TcpStream>, file: &File, start: u64, end: u64, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
+        const CAP: usize = 1024 * 128;
+        let mut reader = BufReader::with_capacity(CAP, file);
+        reader.seek(SeekFrom::Start(start)).unwrap();
+
+        let mut read: u64 = start;
+
+        loop {
+            let length = {
+                match reader.fill_buf() {
+                    Ok(buffer) => {
+                        stream = write_bytes(stream.unwrap(), Vec::from(buffer));
+
+                        if let None = stream {
+                            return None;
+                        }
+
+                        buffer.len()
+                    }
+
+                    Err(error) => {
+                        println!("{}", error);
+
+                        return None;
+                    }
+                }
+            };
+
+            if length == 0 {
+                break;
+            }
+
+            read += length as u64;
+
+            if read >= end {
+                break;
+            }
+
+            reader.consume(length);
+        }
+
+        return stream;
+    }
+
+    fn header_range(&self, start: u64, end: u64, len: u64) -> String {
+        let mut range = String::from("bytes ");
+
+        range += format!("{}", start).as_str();
+        range += "-";
+        range += format!("{}", end).as_str();
+        range += "/";
+        range += format!("{}", len).as_str();
+
+        return String::from("Content-Range: ") + range.as_str();
+    }
+
     fn send_file(&self, mut stream: Option<TcpStream>, request: &HTTPRequest, file_path: &str, write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
         let file = File::open(&*file_path);
 
         match file {
             Ok(file) => {
-                let metadata = file.metadata().unwrap();
+                if self.not_modified_since(request, &file) {
+                    let msg = "Not Modified";
 
-                if request.if_modified_since.len() > 0 {
-                    let modified: DateTime<Utc> = metadata.modified().unwrap().into();
+                    stream = write_header(stream.unwrap(), HTTPStatus::NotModified, MimeType::Plain, msg.len() as usize, None);
 
-                    match DateTime::parse_from_rfc2822(request.if_modified_since.as_str()) {
-                        Ok(modified_since) => {
-                            if modified.timestamp() < modified_since.timestamp() {
-                                let msg = "Not Modified";
-
-                                stream = write_header(stream.unwrap(), HTTPStatus::NotModified, MimeType::Plain, msg.len() as usize, None);
-
-                                if let None = stream {
-                                    return stream;
-                                }
-
-                                stream = write_bytes(stream.unwrap(), Vec::from(msg.as_bytes()));
-                                return stream
-                            }
-                        },
-                        Err(_) => {}
+                    if let None = stream {
+                        return stream;
                     }
+
+                    stream = write_bytes(stream.unwrap(), Vec::from(msg.as_bytes()));
+                    return stream
                 }
 
+                let metadata = file.metadata().unwrap();
+
+                let mut len = metadata.len();
                 let mut start: u64 = 0;
                 let mut end: u64 = metadata.len();
-
-                let len = metadata.len();
 
                 let mut headers: Vec<String> = Vec::new();
                 headers.push(String::from("Accept-Ranges: bytes"));
 
+                let header_mime_type = MimeType::from_file_path(file_path);
+                let mut header_status = HTTPStatus::OK;
+
                 if request.range.len() > 0 {
-                    let (s, e) = self.parse_range(request, metadata.len());
-                    start = s;
-                    end = e;
+                    (start, end) = self.parse_range(request, metadata.len());
 
-                    let mut range = String::from("bytes ");
-                    range += format!("{}", start).as_str();
-                    range += "-";
-                    range += format!("{}", end).as_str();
-                    range += "/";
-                    range += format!("{}", len).as_str();
+                    headers.push(self.header_range(start, end, len));
 
-                    headers.push(String::from("Content-Range: ") + range.as_str());
+                    len = end-start;
 
-                    stream = write_header(stream.unwrap(), HTTPStatus::PartialContent, MimeType::from_file_path(file_path), (end-start) as usize, Some(headers));
-                }else{
-                    stream = write_header(stream.unwrap(), HTTPStatus::OK, MimeType::from_file_path(file_path), len as usize, Some(headers));
+                    header_status = HTTPStatus::PartialContent;
                 }
+
+                stream = write_header(stream.unwrap(), header_status, header_mime_type, len as usize, Some(headers));
 
                 if let None = stream {
                     return stream;
                 }
 
-                const CAP: usize = 1024 * 128;
-                let mut reader = BufReader::with_capacity(CAP, file);
-                reader.seek(SeekFrom::Start(start)).unwrap();
-
-                let mut read: u64 = start;
-
-                loop {
-                    let length = {
-                        match reader.fill_buf() {
-                            Ok(buffer) => {
-                                stream = write_bytes(stream.unwrap(), Vec::from(buffer));
-
-                                if let None = stream {
-                                    return stream;
-                                }
-
-                                buffer.len()
-                            }
-
-                            Err(error) => {
-                                println!("{}", error);
-
-                                return None;
-                            }
-                        }
-                    };
-
-                    if length == 0 {
-                        break;
-                    }
-
-                    read += length as u64;
-
-                    if read >= end {
-                        break;
-                    }
-
-                    reader.consume(length);
-                }
+                stream = self.read_file(stream, &file, start, end, write_bytes);
             }
 
             Err(error) => {
@@ -224,102 +245,8 @@ impl HTTPLocation {
         return stream;
     }
 
-    fn send_index(&self, mut stream: Option<TcpStream>, base: &str, path: &str, write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
-        let paths = fs::read_dir(path).unwrap();
-
-        let mut index = String::from("<html> \n");
-        index += "<body>\n";
-
-        index += "<h1> Index of ";
-        index += base;
-        index += "</h1>\n";
-        index += "<hr>\n";
-
-        index += "<table>\n";
-
-        index += "<tr>\n";
-        index += "<th> Path </th>\n";
-        index += "<th> Modified </th>\n";
-        index += "<th> Size </th>\n";
-        index += "</tr>\n";
-
-        index += "<td>";
-        index += "<a href=\"../\">../</a>\n";
-        index += "</td>\n";
-
-        for path in paths {
-            let path = path.unwrap().path();
-            let name = path.file_stem().unwrap().to_str().unwrap();
-
-            index += "<tr>\n";
-
-            index += "<td>";
-
-            index += "<a href=\"";
-
-            if base != "/" {
-                index += base;
-                index += "/";
-            }
-
-            index += name;
-
-            if path.is_file() {
-                let ext = path.extension();
-
-                if ext != None {
-                    let e = ext.unwrap().to_str().unwrap();
-
-                    index += ".";
-                    index += e;
-                    index += "\">";
-
-                    index += name;
-                    index += ".";
-                    index += e;
-                }else{
-                    index += "\">";
-                    index += name;
-                }
-            }else{
-                index += "\">";
-
-                index += name;
-            }
-
-            index += "</a>";
-            index += "</td>\n";
-
-
-            index += "<td>";
-
-            let metadata = path.metadata().unwrap();
-
-            let created: DateTime<Utc> = metadata.modified().unwrap().into();
-            index += created.format("%Y-%m-%d %T").to_string().as_str();
-
-            index += "</td>\n";
-
-            index += "<td>";
-
-            if path.is_file() {
-                let size = metadata.len();
-
-                index += " ";
-                index += format_size(size, DECIMAL).as_str();
-            }else{
-                index += " -";
-            }
-
-            index += "</td>\n";
-            index += "</tr>\n";
-        }
-
-        index += "</table>\n";
-        index += "<hr>\n";
-
-        index += "</body>\n";
-        index += "</html>";
+    fn send_index(&self, mut stream: Option<TcpStream>, path: &str, local_path: &str, write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
+        let index = generate_index(local_path, path);
 
         stream = write_header(stream.unwrap(), HTTPStatus::OK, MimeType::Html, index.len(), None);
 
