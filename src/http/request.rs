@@ -40,7 +40,7 @@ impl HTTPRequest {
         let mut accept: String = String::from("");
         let mut accept_language: String = String::from("");
         let mut accept_encoding: String = String::from("");
-        let mut connection: HTTPConnection = HTTPConnection::Die;
+        let mut connection: HTTPConnection = HTTPConnection::Close;
         let mut referer: String = String::from("");
 
         for (i, l) in r.iter().enumerate() {
@@ -82,6 +82,9 @@ impl HTTPRequest {
                         "keep-alive" => {
                             connection = HTTPConnection::KeepAlive
                         },
+                        "close" => {
+                            connection = HTTPConnection::Close
+                        }
                         _ => panic!("unknown connection type")
                     }
                 } else if l.starts_with(header_referer) {
@@ -115,14 +118,14 @@ impl fmt::Debug for HTTPRequest {
 #[derive(PartialEq)]
 pub enum HTTPConnection {
     KeepAlive,
-    Die
+    Close
 }
 
 impl fmt::Debug for HTTPConnection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             HTTPConnection::KeepAlive => write!(f, "Keep-Alive"),
-            HTTPConnection::Die => write!(f, "Die"),
+            HTTPConnection::Close => write!(f, "Close"),
         }
     }
 }
