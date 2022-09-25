@@ -8,6 +8,14 @@ pub fn generate_index(local_path: &str, path: &str) -> String {
 
     let mut table_entries = String::from("");
 
+    table_entries += HTML::tr(
+        (
+            HTML::th("Path") +
+            HTML::th("Modified").as_str() +
+            HTML::th("Size").as_str()
+        ).as_str()
+    ).as_str();
+
     table_entries += generate_index_entry("../", "", "").as_str();
 
     for index_entry in paths {
