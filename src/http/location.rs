@@ -237,7 +237,7 @@ impl HTTPLocation {
 
         index += "<tr>\n";
         index += "<th> Path </th>\n";
-        index += "<th> Created </th>\n";
+        index += "<th> Modified </th>\n";
         index += "<th> Size </th>\n";
         index += "</tr>\n";
 
