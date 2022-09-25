@@ -76,14 +76,32 @@ impl HTTPLocation {
         });
     }
 
-    fn parse_range(&self, request: &HTTPRequest) -> (u64, u64) {
+    fn parse_range(&self, request: &HTTPRequest, len: u64) -> (u64, u64) {
         let range = request.range.replacen("byte=", "", 1);
         let r: Vec<&str> = range.split("-").collect();
 
-        let start: u64 = r[0].parse().unwrap();
-        let end: u64 = r[1].parse().unwrap();
+        let mut s: u64 = 0;
+        let mut e: u64 = len;
 
-        return (start, end);
+        match r[0].parse() {
+            Ok(start) => {
+                s = start;
+            }
+            Err(_) => {
+
+            }
+        }
+
+        match r[1].parse() {
+            Ok(start) => {
+                e = start;
+            }
+            Err(_) => {
+
+            }
+        }
+
+        return (s, e);
     }
 
     fn send_file(&self, mut stream: Option<TcpStream>, request: &HTTPRequest, file_path: &str, write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
@@ -121,7 +139,7 @@ impl HTTPLocation {
                 let len = metadata.len();
 
                 if request.range.len() > 0 {
-                    let (s, e) = self.parse_range(request);
+                    let (s, e) = self.parse_range(request, metadata.len());
                     start = s;
                     end = e;
 
