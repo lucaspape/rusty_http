@@ -155,7 +155,7 @@ impl HTTPLocation {
 
                     headers.push(String::from("Content-Range: ") + range.as_str());
 
-                    stream = write_header(stream.unwrap(), HTTPStatus::PartialContent, MimeType::from_file_path(file_path), len as usize, Some(headers));
+                    stream = write_header(stream.unwrap(), HTTPStatus::PartialContent, MimeType::from_file_path(file_path), (start-end) as usize, Some(headers));
                 }else{
                     stream = write_header(stream.unwrap(), HTTPStatus::OK, MimeType::from_file_path(file_path), len as usize, Some(headers));
                 }
