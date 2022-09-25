@@ -186,6 +186,7 @@ impl HTTPLocation {
                     index += e;
                 }else{
                     index += "\">";
+                    index += name;
                 }
             }else{
                 index += "\">";
