@@ -172,14 +172,19 @@ impl HTTPLocation {
             index += name;
 
             if path.is_file() {
-                let ext = path.extension().unwrap().to_str().unwrap();
-                index += ".";
-                index += ext;
-                index += "\">";
+                let ext = path.extension();
 
-                index += name;
-                index += ".";
-                index += ext;
+                if ext != None {
+                    let e = ext.unwrap().to_str().unwrap();
+
+                    index += ".";
+                    index += e;
+                    index += "\">";
+
+                    index += name;
+                    index += ".";
+                    index += e;
+                }
             }else{
                 index += "\">";
 
