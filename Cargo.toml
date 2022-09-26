@@ -2,5 +2,6 @@
 members = [
     "http_server",
     "http_common",
-    "http_extension"
+    "http_extension",
+    "http_extension_file"
 ]
