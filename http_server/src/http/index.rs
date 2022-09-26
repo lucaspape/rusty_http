@@ -1,7 +1,7 @@
 use std::fs;
 use chrono::{DateTime, Utc};
 use humansize::{DECIMAL, format_size};
-use crate::http::html::HTML;
+use http_common::html::HTML;
 
 pub fn generate_index(local_path: &str, path: &str) -> String {
     let paths = fs::read_dir(local_path).unwrap();

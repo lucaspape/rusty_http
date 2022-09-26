@@ -3,10 +3,10 @@ use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::net::TcpStream;
 use std::path::Path;
 use chrono::{DateTime, Utc};
+use http_common::mime::MimeType;
+use http_common::request::HTTPRequest;
 use crate::http::index::generate_index;
-use crate::http::mime::MimeType;
-use crate::http::request::HTTPRequest;
-use crate::http::status::HTTPStatus;
+use http_common::status::HTTPStatus;
 
 #[derive(Clone)]
 #[derive(PartialEq)]

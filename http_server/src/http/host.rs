@@ -1,9 +1,9 @@
 use std::net::TcpStream;
+use http_common::mime::MimeType;
+use http_common::request::{HTTPMethod, HTTPRequest};
 use crate::http::location::HTTPLocation;
-use crate::http::mime::MimeType;
-use crate::http::request::{HTTPMethod, HTTPRequest};
-use crate::http::status::HTTPStatus;
-use crate::http::status::HTTPStatus::{NotFound};
+use http_common::status::HTTPStatus;
+use http_common::status::HTTPStatus::{NotFound};
 
 #[derive(Clone)]
 #[derive(PartialEq)]

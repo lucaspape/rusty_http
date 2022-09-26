@@ -1,4 +1,5 @@
 [workspace]
 members = [
-    "http_server"
+    "http_server",
+    "http_common"
 ]
