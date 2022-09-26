@@ -7,6 +7,9 @@ edition = "2021"
 
 [dependencies]
 http_extension = { path = "../http_extension" }
+http_common = { path = "../http_common" }
+chrono = "0.4.22"
+humansize = "2.0.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

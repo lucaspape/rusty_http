@@ -1,6 +1,7 @@
 extern crate core;
 
 use std::{fs, thread};
+use std::collections::HashMap;
 use std::time::Duration;
 use libloading::{Library, Symbol};
 use http_extension::Extension;
@@ -69,7 +70,7 @@ fn main() {
     }
 }
 
-fn load_extension(path: &str) {
+fn load_extension(path: &str, config: HashMap<String, String>) -> Box<dyn Extension> {
     unsafe {
         type ExtensionCreate = unsafe fn() -> *mut dyn Extension;
 
@@ -78,9 +79,11 @@ fn load_extension(path: &str) {
         let constructor: Symbol<ExtensionCreate> = lib.get(b"_extension_create").unwrap();
         let boxed_raw = constructor();
 
-        let extension = Box::from_raw(boxed_raw);
-        extension.on_load();
+        let mut extension = Box::from_raw(boxed_raw);
+        extension.on_load(config);
 
         println!("Loaded extension {}", extension.name());
+
+        return extension;
     }
 }

@@ -1,6 +1,18 @@
+use std::collections::HashMap;
+use std::net::TcpStream;
+use http_common::mime::MimeType;
+use http_common::request::HTTPRequest;
+use http_common::status::HTTPStatus;
+
 pub trait Extension {
-    fn name(&self) -> &'static str;
-    fn on_load(&self);
+    fn name(&mut self) -> &'static str;
+    fn on_load(&mut self, config: HashMap<String, String>);
+    fn handle_request(&mut self,
+                      stream: Option<TcpStream>,
+                      request: &HTTPRequest,
+                      write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>,
+                      write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>
+    ) -> Option<TcpStream>;
 }
 
 #[macro_export]
