@@ -1,7 +1,9 @@
 extern crate core;
 
-use std::thread;
+use std::{fs, thread};
 use std::time::Duration;
+use libloading::{Library, Symbol};
+use http_extension::Extension;
 use crate::config::RustyHTTPConfig;
 use crate::http::host::HTTPHost;
 use crate::http::location::HTTPLocation;
@@ -11,8 +13,14 @@ mod http;
 mod config;
 
 const CONFIG_FILENAME: &str = "config.json";
+const EXTENSIONS_DIR: &str = "../out/extensions/";
 
 fn main() {
+    for extension in fs::read_dir(EXTENSIONS_DIR).unwrap() {
+        let path = extension.unwrap().path();
+        load_extension(path.to_str().unwrap());
+    }
+
     let c = RustyHTTPConfig::read(CONFIG_FILENAME);
 
     for s in c.servers {
@@ -58,5 +66,21 @@ fn main() {
 
     loop {
         thread::sleep(Duration::from_secs(60));
+    }
+}
+
+fn load_extension(path: &str) {
+    unsafe {
+        type ExtensionCreate = unsafe fn() -> *mut dyn Extension;
+
+        let lib = Library::new(path).unwrap();
+
+        let constructor: Symbol<ExtensionCreate> = lib.get(b"_extension_create").unwrap();
+        let boxed_raw = constructor();
+
+        let extension = Box::from_raw(boxed_raw);
+        extension.on_load();
+
+        println!("Loaded extension {}", extension.name());
     }
 }
