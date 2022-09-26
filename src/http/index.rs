@@ -16,7 +16,7 @@ pub fn generate_index(local_path: &str, path: &str) -> String {
         ).as_str()
     ).as_str();
 
-    table_entries += generate_index_entry("../", "", "").as_str();
+    table_entries += generate_index_entry("../", String::from(""), "","", false).as_str();
 
     for index_entry in paths {
         let index_entry = index_entry.unwrap().path();
@@ -40,7 +40,7 @@ pub fn generate_index(local_path: &str, path: &str) -> String {
             size = format_size(metadata.len(), DECIMAL);
         }
 
-        table_entries += generate_index_entry(name.as_str(), modified.format("%Y-%m-%d %T").to_string().as_str(), size.as_str()).as_str();
+        table_entries += generate_index_entry(name.as_str(), String::from(path),modified.format("%Y-%m-%d %T").to_string().as_str(), size.as_str(), index_entry.is_file()).as_str();
     }
 
     let html = HTML::html(
@@ -57,10 +57,24 @@ pub fn generate_index(local_path: &str, path: &str) -> String {
     return html;
 }
 
-pub fn generate_index_entry(name: &str, modified: &str, size: &str) -> String {
+pub fn generate_index_entry(name: &str, mut path: String, modified: &str, size: &str, is_file: bool) -> String {
+    if !path.ends_with("/") {
+        path += "/"
+    }
+
+    if name != "../" {
+        path += name;
+
+        if !is_file {
+            path += "/";
+        }
+    } else {
+        path = String::from(name);
+    }
+
     return HTML::tr(
         (
-            HTML::td(HTML::a(name, name).as_str()) +
+            HTML::td(HTML::a(name, path.as_str()).as_str()) +
             HTML::td(modified).as_str() +
             HTML::td(size).as_str()).as_str()
     )
