@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::extension_handler::ExtensionHandler;
 
 pub trait Extension {
-    fn name(&mut self) -> &'static str;
+    fn name(&mut self) -> String;
     fn on_load(&mut self, config: HashMap<String, String>) -> bool;
     fn handler(&mut self) -> ExtensionHandler;
 }

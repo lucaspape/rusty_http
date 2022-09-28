@@ -24,8 +24,8 @@ pub struct FileExtension {
 }
 
 impl Extension for FileExtension {
-    fn name(&mut self) -> &'static str {
-        "http_extension_file"
+    fn name(&mut self) -> String {
+        String::from("http_extension_file")
     }
 
     fn on_load(&mut self, config: HashMap<String, String>) -> bool {
