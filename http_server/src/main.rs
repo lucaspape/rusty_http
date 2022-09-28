@@ -84,9 +84,9 @@ fn main() {
     }
 }
 
-fn load_extension(path: &str) -> Box<dyn Extension + Send> {
+fn load_extension(path: &str) -> Box<dyn Extension> {
     unsafe {
-        type ExtensionCreate = unsafe fn() -> *mut (dyn Extension + Send);
+        type ExtensionCreate = unsafe fn() -> *mut (dyn Extension);
 
         let lib = Library::new(path).unwrap();
 

@@ -3,7 +3,7 @@ pub mod extension_handler;
 use std::collections::HashMap;
 use crate::extension_handler::ExtensionHandler;
 
-pub trait Extension: Send + Sync {
+pub trait Extension {
     fn name(&mut self) -> &'static str;
     fn on_load(&mut self, config: HashMap<String, String>) -> bool;
     fn handler(&mut self) -> ExtensionHandler;
