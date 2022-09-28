@@ -17,7 +17,9 @@ build:
 install:
 	mkdir -p out/extensions
 	cp target/$(target)/$(prog) out/$(prog)-$(target)
-	cp target/$(target)/*.dylib out/extensions/
+	cp target/$(target)/*.dylib out/extensions/ || true
+	cp target/$(target)/*.so out/extensions/ || true
+	cp target/$(target)/*.dll out/extensions/ || true
 
 clean:
 	cargo clean
