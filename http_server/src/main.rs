@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 use libloading::{Library, Symbol};
 use http_extension::Extension;
-use crate::config::RustyHTTPConfig;
+use crate::config::{HostConfig, RustyHTTPConfig};
 use crate::http::host::HTTPHost;
 use crate::http::location::HTTPLocation;
 use crate::http::server::HTTPServer;
@@ -15,46 +15,60 @@ mod config;
 
 const CONFIG_FILENAME: &str = "config.json";
 const EXTENSIONS_DIR: &str = "../out/extensions/";
+const DEFAULT_EXTENSION: &str = "http_extension_file";
+
+fn create_host(config: &HostConfig, extensions: &HashMap<String, String>) -> HTTPHost {
+    let mut host_locations: Vec<HTTPLocation> = Vec::new();
+
+    for l in config.locations.iter() {
+        let mut extension_path = extensions.get(DEFAULT_EXTENSION);
+
+        if extension_path == None {
+            panic!("Could not find default extension {}", DEFAULT_EXTENSION);
+        }
+
+        let extension_name = l.extension.as_ref();
+
+        if l.extension != None {
+            extension_path = extensions.get(extension_name.unwrap().as_str());
+        }
+
+        if extension_path == None {
+            panic!("Could not find extension {}", extension_name.unwrap().as_str());
+        }
+
+        println!("Loading extension {}...", extension_path.unwrap());
+
+        let mut extension = load_extension(extension_path.unwrap());
+
+        let mut config: HashMap<String, String> = HashMap::new();
+        config.extend(l.config.clone());
+        config.insert(String::from("path"), l.path.to_string());
+
+        if !extension.on_load(config) {
+            panic!("Failed loading extension {}", extension_path.unwrap());
+        }
+
+        let location = HTTPLocation::new(l.path.as_str(), extension.handler());
+        host_locations.push(location)
+    }
+
+    return HTTPHost::new(config.server_name.as_str(), host_locations);
+}
 
 fn main() {
-    for extension in fs::read_dir(EXTENSIONS_DIR).unwrap() {
-        let path = extension.unwrap().path();
-        load_extension(path.to_str().unwrap());
-    }
+    let extensions = find_extensions(EXTENSIONS_DIR);
 
     let c = RustyHTTPConfig::read(CONFIG_FILENAME);
 
     for s in c.servers {
-        let mut default_host_locations: Vec<HTTPLocation> = Vec::new();
-
-        for l in s.default_host.locations.iter() {
-            let mut index = false;
-
-            if l.index != None {
-                index = l.index.unwrap()
-            }
-
-            default_host_locations.push(HTTPLocation::new(l.path.as_str(), l.root.as_str(), index));
-        }
-
-        let default_host = HTTPHost::new("default", default_host_locations);
+        let default_host = create_host(&s.default_host, &extensions);
 
         let mut hosts: Vec<HTTPHost> = Vec::new();
 
         for h in s.hosts.iter() {
-            let mut host_locations: Vec<HTTPLocation> = Vec::new();
-
-            for l in h.locations.iter() {
-                let mut index = false;
-
-                if l.index != None {
-                    index = l.index.unwrap()
-                }
-
-                host_locations.push(HTTPLocation::new(l.path.as_str(), l.root.as_str(), index));
-            }
-
-            hosts.push(HTTPHost::new(h.server_name.as_str(), host_locations));
+            let host = create_host(h, &extensions);
+            hosts.push(host);
         }
 
         let bind = s.bind.clone();
@@ -70,20 +84,30 @@ fn main() {
     }
 }
 
-fn load_extension(path: &str, config: HashMap<String, String>) -> Box<dyn Extension> {
+fn load_extension(path: &str) -> Box<dyn Extension + Send> {
     unsafe {
-        type ExtensionCreate = unsafe fn() -> *mut dyn Extension;
+        type ExtensionCreate = unsafe fn() -> *mut (dyn Extension + Send);
 
         let lib = Library::new(path).unwrap();
 
         let constructor: Symbol<ExtensionCreate> = lib.get(b"_extension_create").unwrap();
         let boxed_raw = constructor();
 
-        let mut extension = Box::from_raw(boxed_raw);
-        extension.on_load(config);
-
-        println!("Loaded extension {}", extension.name());
+        let extension = Box::from_raw(boxed_raw);
 
         return extension;
     }
+}
+
+fn find_extensions(path: &str) -> HashMap<String, String> {
+    let mut extensions = HashMap::new();
+
+    for e in fs::read_dir(path).unwrap() {
+        let path = e.unwrap().path();
+        let mut extension = load_extension(path.to_str().unwrap());
+
+        extensions.insert(String::from(extension.name().clone()), String::from(path.to_str().unwrap().clone()));
+    }
+
+    return extensions;
 }

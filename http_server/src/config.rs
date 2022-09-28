@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use serde::{Deserialize, Serialize};
 
@@ -32,6 +33,6 @@ pub struct HostConfig {
 #[derive(Serialize, Deserialize)]
 pub struct LocationConfig {
     pub path: String,
-    pub root: String,
-    pub index: Option<bool>
+    pub extension: Option<String>,
+    pub config: HashMap<String, String>
 }

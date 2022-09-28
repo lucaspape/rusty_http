@@ -1,18 +1,12 @@
-use std::collections::HashMap;
-use std::net::TcpStream;
-use http_common::mime::MimeType;
-use http_common::request::HTTPRequest;
-use http_common::status::HTTPStatus;
+pub mod extension_handler;
 
-pub trait Extension {
+use std::collections::HashMap;
+use crate::extension_handler::ExtensionHandler;
+
+pub trait Extension: Send + Sync {
     fn name(&mut self) -> &'static str;
-    fn on_load(&mut self, config: HashMap<String, String>);
-    fn handle_request(&mut self,
-                      stream: Option<TcpStream>,
-                      request: &HTTPRequest,
-                      write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>,
-                      write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>
-    ) -> Option<TcpStream>;
+    fn on_load(&mut self, config: HashMap<String, String>) -> bool;
+    fn handler(&mut self) -> ExtensionHandler;
 }
 
 #[macro_export]

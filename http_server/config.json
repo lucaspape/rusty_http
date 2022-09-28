@@ -7,12 +7,16 @@
         "locations": [
           {
             "path": "/",
-            "root": "html/root/",
-            "index": true
+            "config": {
+              "root": "html/root/",
+              "index": "true"
+            }
           },
           {
             "path": "/test/",
-            "root": "html/test2/"
+            "config": {
+              "root": "html/test2/"
+            }
           }
         ]
       },

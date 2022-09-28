@@ -3,37 +3,49 @@ use std::net::TcpStream;
 use http_common::mime::MimeType;
 use http_common::request::HTTPRequest;
 use http_common::status::HTTPStatus;
-use http_extension::Extension;
+use http_extension::extension_handler::ExtensionHandler;
 
+
+#[derive(Clone)]
 pub struct HTTPLocation {
     pub path: String,
-    root: String,
-    index: bool,
-    extension: Box<dyn Extension>
+    handler: ExtensionHandler
+}
+
+impl PartialEq for HTTPLocation {
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path
+    }
 }
 
 impl HTTPLocation {
-    pub fn new(path: &str, root: &str, index: bool, extension: Box<dyn Extension>) -> HTTPLocation {
+    pub fn new(path: &str, handler: ExtensionHandler) -> HTTPLocation {
         return HTTPLocation{
             path: String::from(path),
-            root: String::from(root),
-            index,
-            extension
+            handler
         }
     }
 
-    pub fn handle_get(&mut self,
-                      mut stream: Option<TcpStream>,
+    pub fn handle_get(self,
+                      stream: &TcpStream,
                       request: &HTTPRequest,
-                      write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>,
-                      write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>
-    ) -> Option<TcpStream> {
-        return self.extension.handle_request(stream, request, write_header, write_bytes);
+                      write_header: &fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
+                      write_bytes: &fn(&TcpStream, Vec<u8>) -> bool
+    ) -> bool {
+        (self.handler.request)(self.handler.args, stream, request, write_header, write_bytes)
     }
 
-    pub fn handle_head(&mut self, stream: Option<TcpStream>, request: &HTTPRequest, write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>) -> Option<TcpStream> {
-        return self.handle_get(stream, request, write_header, |_, _| {
-           return None;
-        });
+    pub fn handle_head(self, stream: &TcpStream, request: &HTTPRequest, write_header: &fn(
+        &TcpStream,
+        HTTPStatus,
+        MimeType,
+        usize,
+        Option<Vec<String>>
+    ) -> bool) -> bool {
+        let write_bytes: fn(&TcpStream, Vec<u8>) -> bool = |_,_| {
+            false
+        };
+
+        return self.handle_get(stream, request, write_header, &write_bytes);
     }
 }

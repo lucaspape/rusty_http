@@ -6,15 +6,18 @@ use std::path::Path;
 use http_common::mime::MimeType;
 use http_common::request::HTTPRequest;
 use http_common::status::HTTPStatus;
-use http_extension::{declare_extension, Extension};
 
 use chrono::{DateTime, Utc};
+use http_extension::{declare_extension, Extension};
+
+use http_extension::extension_handler::ExtensionHandler;
 use crate::index::generate_index;
 
 pub mod index;
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct FileExtension {
+    handler: ExtensionHandler,
     path: String,
     root: String,
     index: bool
@@ -25,67 +28,106 @@ impl Extension for FileExtension {
         "http_extension_file"
     }
 
-    fn on_load(&mut self, config: HashMap<String, String>) {
+    fn on_load(&mut self, config: HashMap<String, String>) -> bool {
         self.path = config.get("path").unwrap().to_string();
-        self.root = config.get("config").unwrap().to_string();
-        self.index = config.get("index").unwrap() == "true";
+        self.root = config.get("root").unwrap().to_string();
 
-        println!("Loaded {} with root {} and index {}", self.name(), self.root, self.index);
-    }
+        let index = config.get("index");
 
-    fn handle_request(&mut self, mut stream: Option<TcpStream>, request: &HTTPRequest, write_header: fn(
-        TcpStream,
-        HTTPStatus,
-        MimeType,
-        usize,
-        Option<Vec<String>>
-    ) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
-        let mut path = String::from(&*request.path);
-
-        if path.starts_with(&*self.path) {
-            path = path.replacen(&*self.path, "", 1);
+        if index == None {
+            self.index = false;
+        }else{
+            self.index = index.unwrap() == "true";
         }
 
-        let file_path = String::from(self.root.as_str()) + path.as_str();
+        let mut index_str = "false";
+
+        if self.index == true {
+            index_str = "true"
+        }
+
+        self.handler = ExtensionHandler{
+            request: |args, stream, request, write_header, write_bytes| {
+                let path = &args[0];
+                let root = &args[1];
+                let index = &args[2] == "true";
+
+                FileExtension::handle_request(path, root, index, stream, request, write_header, write_bytes)
+            },
+            args: Vec::from([String::from(&self.path), String::from(&self.root), String::from(index_str)])
+        };
+
+        println!("Loaded {} with root {} and index {}", self.name(), self.root, self.index);
+
+        return true;
+    }
+
+    fn handler(&mut self) -> ExtensionHandler {
+        return self.handler.clone();
+    }
+}
+
+impl FileExtension {
+    fn handle_request(
+        path: &str,
+        root: &str,
+        index: bool,
+        stream: &TcpStream,
+                      request: &HTTPRequest,
+                      write_header: &fn(
+                          &TcpStream,
+                          HTTPStatus,
+                          MimeType,
+                          usize,
+                          Option<Vec<String>>
+                      ) -> bool,
+                      write_bytes: &fn(&TcpStream, Vec<u8>) -> bool
+    ) -> bool {
+        let mut r_path = String::from(&*request.path);
+
+        if r_path.starts_with(path) {
+            r_path = r_path.replacen(path, "", 1);
+        }
+
+        let file_path = String::from(root) + r_path.as_str();
 
         let path = Path::new(file_path.as_str());
 
         if !path.exists() {
             let msg = "No such file or directory";
 
-            stream = write_header(stream.unwrap(), HTTPStatus::NotFound, MimeType::Plain, msg.len(), None);
-
-            if let None = stream {
-                return stream;
+            if !write_header(stream, HTTPStatus::NotFound, MimeType::Plain, msg.len(), None) {
+                return false;
             }
 
-            stream = write_bytes(stream.unwrap(), Vec::from(msg.as_bytes()));
-            return stream;
+            if !write_bytes(stream, Vec::from(msg.as_bytes())) {
+                return false;
+            }
         }
 
         return if path.is_dir() {
-            if self.index {
-                self.send_index(stream, request.path.as_str(), file_path.as_str(), write_header, write_bytes)
+            if index {
+                Self::send_index(stream, request.path.as_str(), file_path.as_str(), write_header, write_bytes)
             } else {
                 let msg = "Forbidden";
 
-                stream = write_header(stream.unwrap(), HTTPStatus::NotFound, MimeType::Plain, msg.len(), None);
-
-                if let None = stream {
-                    return stream;
+                if !write_header(stream, HTTPStatus::NotFound, MimeType::Plain, msg.len(), None) {
+                    return false;
                 }
 
-                stream = write_bytes(stream.unwrap(), Vec::from(msg.as_bytes()));
-                stream
+
+                if !write_bytes(stream, Vec::from(msg.as_bytes())) {
+                    return false
+                }
+
+                true
             }
         } else {
-            self.send_file(stream, request, file_path.as_str(), write_header, write_bytes)
+            Self::send_file(stream, request, file_path.as_str(), write_header, write_bytes)
         }
     }
-}
 
-impl FileExtension {
-    fn parse_range(&self, request: &HTTPRequest, len: u64) -> (u64, u64) {
+    fn parse_range(request: &HTTPRequest, len: u64) -> (u64, u64) {
         let range = request.range.replacen("bytes=", "", 1);
         let r: Vec<&str> = range.split("-").collect();
 
@@ -115,7 +157,7 @@ impl FileExtension {
         return (s, e);
     }
 
-    fn not_modified_since(&self, request: &HTTPRequest, file: &File) -> bool {
+    fn not_modified_since(request: &HTTPRequest, file: &File) -> bool {
         let metadata = file.metadata().unwrap();
 
         if request.if_modified_since.len() > 0 {
@@ -132,7 +174,12 @@ impl FileExtension {
         return false;
     }
 
-    fn read_file(&self, mut stream: Option<TcpStream>, file: &File, start: u64, end: u64, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
+    fn read_file(stream: &TcpStream,
+                 file: &File,
+                 start: u64,
+                 end: u64,
+                 write_bytes: &fn(&TcpStream, Vec<u8>) -> bool
+    ) -> bool {
         const CAP: usize = 1024 * 128;
         let mut reader = BufReader::with_capacity(CAP, file);
         reader.seek(SeekFrom::Start(start)).unwrap();
@@ -143,10 +190,8 @@ impl FileExtension {
             let length = {
                 match reader.fill_buf() {
                     Ok(buffer) => {
-                        stream = write_bytes(stream.unwrap(), Vec::from(buffer));
-
-                        if let None = stream {
-                            return None;
+                        if !write_bytes(stream, Vec::from(buffer)) {
+                            return false;
                         }
 
                         buffer.len()
@@ -155,7 +200,7 @@ impl FileExtension {
                     Err(error) => {
                         println!("{}", error);
 
-                        return None;
+                        return false;
                     }
                 }
             };
@@ -173,10 +218,10 @@ impl FileExtension {
             reader.consume(length);
         }
 
-        return stream;
+        return true;
     }
 
-    fn header_range(&self, start: u64, end: u64, len: u64) -> String {
+    fn header_range(start: u64, end: u64, len: u64) -> String {
         let mut range = String::from("bytes ");
 
         range += format!("{}", start).as_str();
@@ -188,22 +233,26 @@ impl FileExtension {
         return String::from("Content-Range: ") + range.as_str();
     }
 
-    fn send_file(&self, mut stream: Option<TcpStream>, request: &HTTPRequest, file_path: &str, write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
+    fn send_file(stream: &TcpStream,
+                 request: &HTTPRequest,
+                 file_path: &str,
+                 write_header: &fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
+                 write_bytes: &fn(&TcpStream, Vec<u8>) -> bool
+    ) -> bool {
         let file = File::open(&*file_path);
 
         match file {
             Ok(file) => {
-                if self.not_modified_since(request, &file) {
+                if Self::not_modified_since(request, &file) {
                     let msg = "Not Modified";
 
-                    stream = write_header(stream.unwrap(), HTTPStatus::NotModified, MimeType::Plain, msg.len() as usize, None);
-
-                    if let None = stream {
-                        return stream;
+                    if !write_header(stream, HTTPStatus::NotModified, MimeType::Plain, msg.len() as usize, None) {
+                        return false;
                     }
 
-                    stream = write_bytes(stream.unwrap(), Vec::from(msg.as_bytes()));
-                    return stream
+                    if !write_bytes(stream, Vec::from(msg.as_bytes())) {
+                        return false;
+                    }
                 }
 
                 let metadata = file.metadata().unwrap();
@@ -219,22 +268,22 @@ impl FileExtension {
                 let mut header_status = HTTPStatus::OK;
 
                 if request.range.len() > 0 {
-                    (start, end) = self.parse_range(request, metadata.len());
+                    (start, end) = Self::parse_range(request, metadata.len());
 
-                    headers.push(self.header_range(start, end, len));
+                    headers.push(Self::header_range(start, end, len));
 
                     len = end-start;
 
                     header_status = HTTPStatus::PartialContent;
                 }
 
-                stream = write_header(stream.unwrap(), header_status, header_mime_type, len as usize, Some(headers));
-
-                if let None = stream {
-                    return stream;
+                if !write_header(stream, header_status, header_mime_type, len as usize, Some(headers)) {
+                    return false;
                 }
 
-                stream = self.read_file(stream, &file, start, end, write_bytes);
+                if !Self::read_file(stream, &file, start, end, write_bytes) {
+                    return false;
+                }
             }
 
             Err(error) => {
@@ -242,29 +291,32 @@ impl FileExtension {
 
                 let msg = "Internal Server Error";
 
-                stream = write_header(stream.unwrap(), HTTPStatus::InternalServerError, MimeType::Plain, msg.len(), None);
-
-                if let None = stream {
-                    return stream;
+                if !write_header(stream, HTTPStatus::InternalServerError, MimeType::Plain, msg.len(), None) {
+                    return false
                 }
 
-                stream = write_bytes(stream.unwrap(), Vec::from(msg.as_bytes()));
+                if !write_bytes(stream, Vec::from(msg.as_bytes())) {
+                    return false
+                }
             }
         };
 
-        return stream;
+        return true;
     }
 
-    fn send_index(&self, mut stream: Option<TcpStream>, path: &str, local_path: &str, write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
+    fn send_index(stream: &TcpStream,
+                  path: &str,
+                  local_path: &str,
+                  write_header: &fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
+                  write_bytes: &fn(&TcpStream, Vec<u8>) -> bool
+    ) -> bool {
         let index = generate_index(local_path, path);
 
-        stream = write_header(stream.unwrap(), HTTPStatus::OK, MimeType::Html, index.len(), None);
-
-        if let None = stream {
-            return stream;
+        if !write_header(stream, HTTPStatus::OK, MimeType::Html, index.len(), None) {
+            return false
         }
 
-        return write_bytes(stream.unwrap(), Vec::from(index.as_bytes()));
+        return write_bytes(stream, Vec::from(index.as_bytes()));
     }
 }
 
