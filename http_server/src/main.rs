@@ -14,7 +14,7 @@ mod http;
 mod config;
 
 const CONFIG_FILENAME: &str = "config.json";
-const EXTENSIONS_DIR: &str = "../out/extensions/";
+const EXTENSIONS_DIR: &str = "extensions/";
 const DEFAULT_EXTENSION: &str = "http_extension_file";
 
 fn create_host(config: &HostConfig, extensions: &HashMap<String, String>) -> HTTPHost {
