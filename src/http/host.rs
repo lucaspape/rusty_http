@@ -1,9 +1,9 @@
 use std::net::TcpStream;
+use crate::common::mime::MimeType;
+use crate::common::request::{HTTPMethod, HTTPRequest};
 use crate::http::location::HTTPLocation;
-use crate::http::mime::MimeType;
-use crate::http::request::{HTTPMethod, HTTPRequest};
-use crate::http::status::HTTPStatus;
-use crate::http::status::HTTPStatus::{NotFound};
+use crate::common::status::HTTPStatus;
+use crate::common::status::HTTPStatus::{NotFound};
 
 #[derive(Clone)]
 pub struct HTTPHost {

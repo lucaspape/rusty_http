@@ -1,8 +1,8 @@
 use std::net::TcpStream;
+use crate::common::mime::MimeType;
+use crate::common::request::HTTPRequest;
 use crate::extension::extension_handler::ExtensionHandler;
-use crate::http::mime::MimeType;
-use crate::http::request::HTTPRequest;
-use crate::http::status::HTTPStatus;
+use crate::common::status::HTTPStatus;
 
 #[derive(Clone)]
 pub struct HTTPLocation {

@@ -12,6 +12,7 @@ use crate::http::server::HTTPServer;
 mod http;
 mod config;
 mod extension;
+mod common;
 
 const CONFIG_FILENAME: &str = "config.json";
 

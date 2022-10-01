@@ -2,12 +2,12 @@ use std::{thread};
 use std::io::{prelude::*, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::net::Shutdown::Both;
+use crate::common::mime::MimeType;
+use crate::common::request::HTTPConnection::KeepAlive;
+use crate::common::request::HTTPRequest;
 
 use crate::http::host::HTTPHost;
-use crate::http::mime::MimeType;
-use crate::http::request::{HTTPRequest};
-use crate::http::request::HTTPConnection::KeepAlive;
-use crate::http::status::HTTPStatus;
+use crate::common::status::HTTPStatus;
 
 pub struct HTTPServer {
     bind: String,
