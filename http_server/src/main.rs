@@ -4,7 +4,7 @@ use std::{fs, thread};
 use std::collections::HashMap;
 use std::time::Duration;
 use libloading::{Library, Symbol};
-use http_extension::Extension;
+use http_extension::{ExtensionWrapper};
 use crate::config::{HostConfig, RustyHTTPConfig};
 use crate::http::host::HTTPHost;
 use crate::http::location::HTTPLocation;
@@ -39,17 +39,18 @@ fn create_host(config: &HostConfig, extensions: &HashMap<String, String>) -> HTT
 
         println!("Loading extension {}...", extension_path.unwrap());
 
-        let mut extension = load_extension(extension_path.unwrap());
+        let mut extension_wrapper = load_extension(extension_path.unwrap());
+        let extension = extension_wrapper.extension;
 
         let mut config: HashMap<String, String> = HashMap::new();
         config.extend(l.config.clone());
         config.insert(String::from("path"), l.path.to_string());
 
-        if !extension.on_load(config) {
+        if !(extension.on_load)(&mut *extension_wrapper.object, config) {
             panic!("Failed loading extension {}", extension_path.unwrap());
         }
 
-        let location = HTTPLocation::new(l.path.as_str(), extension.handler());
+        let location = HTTPLocation::new(l.path.as_str(), (extension.handler)(&mut *extension_wrapper.object));
         host_locations.push(location)
     }
 
@@ -84,9 +85,9 @@ fn main() {
     }
 }
 
-fn load_extension(path: &str) -> Box<dyn Extension> {
+fn load_extension(path: &str) -> Box<ExtensionWrapper> {
     unsafe {
-        type ExtensionCreate = unsafe fn() -> *mut (dyn Extension);
+        type ExtensionCreate = unsafe fn() -> *mut ExtensionWrapper;
 
         let lib = Library::new(path).unwrap();
 
@@ -104,9 +105,11 @@ fn find_extensions(path: &str) -> HashMap<String, String> {
 
     for e in fs::read_dir(path).unwrap() {
         let path = e.unwrap().path();
-        let mut extension = load_extension(path.to_str().unwrap());
 
-        extensions.insert(String::from(extension.name().clone()), String::from(path.to_str().unwrap().clone()));
+        let mut extension_wrapper = load_extension(path.to_str().unwrap());
+        let name = (extension_wrapper.extension.name)(&mut *extension_wrapper.object);
+
+        extensions.insert(name, String::from(path.to_str().unwrap().clone()));
     }
 
     return extensions;

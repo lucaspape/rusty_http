@@ -1,24 +1,16 @@
 pub mod extension_handler;
 
+use std::any::Any;
 use std::collections::HashMap;
 use crate::extension_handler::ExtensionHandler;
 
-pub trait Extension {
-    fn name(&mut self) -> String;
-    fn on_load(&mut self, config: HashMap<String, String>) -> bool;
-    fn handler(&mut self) -> ExtensionHandler;
+pub struct Extension {
+    pub name: fn (object: &mut dyn Any) -> String,
+    pub on_load: fn(object: &mut dyn Any, config: HashMap<String, String>) -> bool,
+    pub handler: fn(object: &mut dyn Any) -> ExtensionHandler,
 }
 
-#[macro_export]
-macro_rules! declare_extension {
-    ($extension_type:ty, $constructor:path) => {
-        #[no_mangle]
-        pub extern "C" fn _extension_create() -> *mut dyn $crate::Extension {
-            let constructor: fn() -> $extension_type = $constructor;
-
-            let object = constructor();
-            let boxed: Box<dyn $crate::Extension> = Box::new(object);
-            Box::into_raw(boxed)
-        }
-    };
+pub struct ExtensionWrapper {
+    pub extension: Box<Extension>,
+    pub object: Box<dyn Any>
 }

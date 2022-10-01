@@ -8,22 +8,22 @@ use http_common::request::HTTPRequest;
 use http_common::status::HTTPStatus;
 
 use chrono::{DateTime, Utc};
-use http_extension::{declare_extension, Extension};
+use http_extension::{Extension, ExtensionWrapper};
 
 use http_extension::extension_handler::ExtensionHandler;
 use crate::index::generate_index;
 
 pub mod index;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FileExtension {
     handler: ExtensionHandler,
     path: String,
     root: String,
-    index: bool
+    index: bool,
 }
 
-impl Extension for FileExtension {
+impl FileExtension {
     fn name(&mut self) -> String {
         String::from("http_extension_file")
     }
@@ -36,7 +36,7 @@ impl Extension for FileExtension {
 
         if index == None {
             self.index = false;
-        }else{
+        } else {
             self.index = index.unwrap() == "true";
         }
 
@@ -46,7 +46,7 @@ impl Extension for FileExtension {
             index_str = "true"
         }
 
-        self.handler = ExtensionHandler{
+        self.handler = ExtensionHandler {
             request: |args, stream, request, write_header, write_bytes| {
                 let path = &args[0];
                 let root = &args[1];
@@ -54,7 +54,7 @@ impl Extension for FileExtension {
 
                 FileExtension::handle_request(path, root, index, stream, request, write_header, write_bytes)
             },
-            args: Vec::from([String::from(&self.path), String::from(&self.root), String::from(index_str)])
+            args: Vec::from([String::from(&self.path), String::from(&self.root), String::from(index_str)]),
         };
 
         println!("Loaded {} with root {} and index {}", self.name(), self.root, self.index);
@@ -73,15 +73,15 @@ impl FileExtension {
         root: &str,
         index: bool,
         stream: &TcpStream,
-                      request: &HTTPRequest,
-                      write_header: &fn(
-                          &TcpStream,
-                          HTTPStatus,
-                          MimeType,
-                          usize,
-                          Option<Vec<String>>
-                      ) -> bool,
-                      write_bytes: &fn(&TcpStream, Vec<u8>) -> bool
+        request: &HTTPRequest,
+        write_header: &fn(
+            &TcpStream,
+            HTTPStatus,
+            MimeType,
+            usize,
+            Option<Vec<String>>,
+        ) -> bool,
+        write_bytes: &fn(&TcpStream, Vec<u8>) -> bool,
     ) -> bool {
         let mut r_path = String::from(&*request.path);
 
@@ -117,14 +117,14 @@ impl FileExtension {
 
 
                 if !write_bytes(stream, Vec::from(msg.as_bytes())) {
-                    return false
+                    return false;
                 }
 
                 true
             }
         } else {
             Self::send_file(stream, request, file_path.as_str(), write_header, write_bytes)
-        }
+        };
     }
 
     fn parse_range(request: &HTTPRequest, len: u64) -> (u64, u64) {
@@ -138,8 +138,7 @@ impl FileExtension {
             Ok(start) => {
                 s = start;
             }
-            Err(_) => {
-            }
+            Err(_) => {}
         }
 
         match r[1].parse() {
@@ -149,9 +148,7 @@ impl FileExtension {
                 //TODO this a fix for safari, needs to be checked
                 e += 1;
             }
-            Err(_) => {
-
-            }
+            Err(_) => {}
         }
 
         return (s, e);
@@ -166,7 +163,7 @@ impl FileExtension {
             match DateTime::parse_from_rfc2822(request.if_modified_since.as_str()) {
                 Ok(modified_since) => {
                     return modified.timestamp() < modified_since.timestamp();
-                },
+                }
                 Err(_) => {}
             }
         }
@@ -178,7 +175,7 @@ impl FileExtension {
                  file: &File,
                  start: u64,
                  end: u64,
-                 write_bytes: &fn(&TcpStream, Vec<u8>) -> bool
+                 write_bytes: &fn(&TcpStream, Vec<u8>) -> bool,
     ) -> bool {
         const CAP: usize = 1024 * 128;
         let mut reader = BufReader::with_capacity(CAP, file);
@@ -237,7 +234,7 @@ impl FileExtension {
                  request: &HTTPRequest,
                  file_path: &str,
                  write_header: &fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
-                 write_bytes: &fn(&TcpStream, Vec<u8>) -> bool
+                 write_bytes: &fn(&TcpStream, Vec<u8>) -> bool,
     ) -> bool {
         let file = File::open(&*file_path);
 
@@ -272,7 +269,7 @@ impl FileExtension {
 
                     headers.push(Self::header_range(start, end, len));
 
-                    len = end-start;
+                    len = end - start;
 
                     header_status = HTTPStatus::PartialContent;
                 }
@@ -292,11 +289,11 @@ impl FileExtension {
                 let msg = "Internal Server Error";
 
                 if !write_header(stream, HTTPStatus::InternalServerError, MimeType::Plain, msg.len(), None) {
-                    return false
+                    return false;
                 }
 
                 if !write_bytes(stream, Vec::from(msg.as_bytes())) {
-                    return false
+                    return false;
                 }
             }
         };
@@ -308,16 +305,49 @@ impl FileExtension {
                   path: &str,
                   local_path: &str,
                   write_header: &fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
-                  write_bytes: &fn(&TcpStream, Vec<u8>) -> bool
+                  write_bytes: &fn(&TcpStream, Vec<u8>) -> bool,
     ) -> bool {
         let index = generate_index(local_path, path);
 
         if !write_header(stream, HTTPStatus::OK, MimeType::Html, index.len(), None) {
-            return false
+            return false;
         }
 
         return write_bytes(stream, Vec::from(index.as_bytes()));
     }
 }
 
-declare_extension!(FileExtension, FileExtension::default);
+#[no_mangle]
+pub extern "C" fn _extension_create() -> Box<ExtensionWrapper> {
+    let object = FileExtension {
+        handler: Default::default(),
+        path: "".to_string(),
+        root: "".to_string(),
+        index: false,
+    };
+
+    let boxed_extension: Box<Extension> = Box::new(Extension {
+        handler: |extension| {
+            let e = extension.downcast_mut::<FileExtension>().unwrap();
+            e.handler()
+        },
+        name: |extension| {
+            let e = extension.downcast_mut::<FileExtension>().unwrap();
+            e.name()
+        },
+        on_load: |extension, map| {
+            let e = extension.downcast_mut::<FileExtension>().unwrap();
+            e.on_load(map)
+        }
+    });
+
+    let boxed_file_extension: Box<FileExtension> = Box::new(
+        object
+    );
+
+    let boxed_wrapper: Box<ExtensionWrapper> = Box::new(
+        ExtensionWrapper{extension: boxed_extension, object: boxed_file_extension}
+    );
+
+    boxed_wrapper
+}
