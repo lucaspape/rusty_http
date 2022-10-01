@@ -16,22 +16,6 @@ mod common;
 
 const CONFIG_FILENAME: &str = "config.json";
 
-fn create_host(config: &HostConfig) -> HTTPHost {
-    let mut host_locations: Vec<HTTPLocation> = Vec::new();
-
-    for l in config.locations.iter() {
-        let mut index = false;
-
-        if l.index != None {
-            index = l.index.unwrap()
-        }
-
-        host_locations.push(HTTPLocation::new(l.path.as_str(), l.root.as_str(), index, FileExtension{}.handler()))
-    }
-
-    return HTTPHost::new(config.server_name.as_str(), host_locations);
-}
-
 fn main() {
     let c = RustyHTTPConfig::read(CONFIG_FILENAME);
 
@@ -55,5 +39,40 @@ fn main() {
 
     loop {
         thread::sleep(Duration::from_secs(60));
+    }
+}
+
+fn create_host(config: &HostConfig) -> HTTPHost {
+    let mut host_locations: Vec<HTTPLocation> = Vec::new();
+
+    for l in config.locations.iter() {
+        let mut index = false;
+
+        if l.index != None {
+            index = l.index.unwrap()
+        }
+
+        let mut extension_name = "file";
+
+        if l.extension != None {
+            extension_name = l.extension.as_ref().unwrap().as_str();
+        }
+
+        let extension = get_extension(extension_name);
+
+        host_locations.push(HTTPLocation::new(l.path.as_str(), l.root.as_str(), index, extension.handler()))
+    }
+
+    return HTTPHost::new(config.server_name.as_str(), host_locations);
+}
+
+fn get_extension(name: &str) -> Box<dyn Extension> {
+    return match name {
+        "file" => {
+            Box::new(FileExtension{})
+        }
+        _ => {
+            panic!("Could not find extension {}", name)
+        }
     }
 }

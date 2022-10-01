@@ -32,6 +32,7 @@ pub struct HostConfig {
 #[derive(Serialize, Deserialize)]
 pub struct LocationConfig {
     pub path: String,
+    pub extension: Option<String>,
     pub root: String,
     pub index: Option<bool>
 }

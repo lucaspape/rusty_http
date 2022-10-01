@@ -16,6 +16,10 @@ impl Extension for FileExtension {
     fn handler(&self) -> ExtensionHandler {
         ExtensionHandler { request: FileExtension::handle }
     }
+
+    fn name(&self) -> String {
+        String::from("file")
+    }
 }
 
 impl FileExtension {
