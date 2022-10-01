@@ -4,7 +4,7 @@ use std::thread;
 use std::time::Duration;
 use crate::config::{HostConfig, RustyHTTPConfig};
 use crate::extension::extension::Extension;
-use crate::extension::file_extension::FileExtension;
+use crate::extension::file::file_extension::FileExtension;
 use crate::http::host::HTTPHost;
 use crate::http::location::HTTPLocation;
 use crate::http::server::HTTPServer;

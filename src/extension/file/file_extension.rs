@@ -7,8 +7,8 @@ use crate::common::mime::MimeType;
 use crate::common::request::HTTPRequest;
 use crate::extension::extension::Extension;
 use crate::extension::extension_handler::ExtensionHandler;
-use crate::http::index::generate_index;
 use crate::common::status::HTTPStatus;
+use crate::extension::file::index::generate_index;
 
 pub struct FileExtension {}
 
