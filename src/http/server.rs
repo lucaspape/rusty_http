@@ -80,17 +80,14 @@ impl HTTPServer {
             }
         }
 
-        if host == None {
+        if let None = host {
             host = Some(&default_host);
         }
 
-        let stream = host.unwrap().handle_request(Some(stream), &request, Self::write_header, Self::write_bytes);
-
-        if let None = stream {
-            return;
+        if !host.unwrap().handle_request(&stream, &request, Self::write_header, Self::write_bytes) {
+            return
         }
 
-        let mut stream = stream.unwrap();
         stream.flush().unwrap();
 
         if request.connection == KeepAlive {
@@ -98,7 +95,7 @@ impl HTTPServer {
         }
     }
 
-    fn write_header(stream: TcpStream, status: HTTPStatus, content_type: MimeType, content_length: usize, additional: Option<Vec<String>>) -> Option<TcpStream> {
+    fn write_header(stream: &TcpStream, status: HTTPStatus, content_type: MimeType, content_length: usize, additional: Option<Vec<String>>) -> bool {
         let (status_code, status_name) = status.get();
         let content_type_name = content_type.get();
 
@@ -121,15 +118,15 @@ impl HTTPServer {
         return Self::write_bytes(stream, header);
     }
 
-    fn write_bytes(mut stream: TcpStream, b: Vec<u8>) -> Option<TcpStream> {
+    fn write_bytes(mut stream: &TcpStream, b: Vec<u8>) -> bool {
         return match stream.write(&b[..]) {
             Ok(_) => {
-                Some(stream)
+                true
             }
             Err(_) => {
                 let _ = stream.shutdown(Both);
 
-                None
+                false
             }
         }
     }

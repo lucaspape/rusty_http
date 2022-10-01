@@ -6,57 +6,62 @@ use crate::http::status::HTTPStatus;
 use crate::http::status::HTTPStatus::{NotFound};
 
 #[derive(Clone)]
-#[derive(PartialEq)]
 pub struct HTTPHost {
     pub server_name: String,
-    locations: Vec<HTTPLocation>
+    locations: Vec<HTTPLocation>,
 }
 
 impl HTTPHost {
     pub fn new(server_name: &str, locations: Vec<HTTPLocation>) -> HTTPHost {
         return HTTPHost {
             server_name: String::from(server_name),
-            locations
-        }
+            locations,
+        };
     }
 
-    pub fn handle_request(&self, mut stream: Option<TcpStream>, request: &HTTPRequest, write_header: fn(TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> Option<TcpStream>, write_bytes: fn(TcpStream, Vec<u8>) -> Option<TcpStream>) -> Option<TcpStream> {
+    pub fn handle_request(&self,
+                          stream: &TcpStream,
+                          request: &HTTPRequest,
+                          write_header: fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
+                          write_bytes: fn(&TcpStream, Vec<u8>) -> bool,
+    ) -> bool {
         let mut location: Option<&HTTPLocation> = None;
         let mut responsibility = 0;
 
         for l in self.locations.iter() {
-            if request.path.starts_with(&*l.path) {
-                let r = request.path.replace(&*l.path, "").len();
+            if request.path.starts_with(&*l.location) {
+                let r = request.path.replace(&*l.location, "").len();
 
-                if r < responsibility || location == None {
+                let empty = if let None = location {
+                    true
+                } else {
+                    false
+                };
+
+                if r < responsibility || empty {
                     location = Some(l);
                     responsibility = r
                 }
             }
         }
 
-        if location == None {
+        if let None = location {
             let msg = "no location";
 
-            stream = write_header(stream.unwrap(), NotFound, MimeType::Plain, msg.len(), None);
-
-            if let None = stream {
-                return stream;
+            if !write_header(stream, NotFound, MimeType::Plain, msg.len(), None) {
+                return false;
             }
 
-            stream = write_bytes(stream.unwrap(), Vec::from(String::from("no location").as_bytes()));
-            return stream;
+            return write_bytes(stream, Vec::from(String::from("no location").as_bytes()));
         }
 
-        match request.method {
+        return match request.method {
             HTTPMethod::GET => {
-                stream = location.unwrap().handle_get(stream, &request, write_header, write_bytes)
-            },
-            HTTPMethod::HEAD => {
-                stream = location.unwrap().handle_head(stream, &request, write_header)
+                location.unwrap().handle_get(stream, &request, write_header, write_bytes)
             }
-        }
-
-        return stream;
+            HTTPMethod::HEAD => {
+                location.unwrap().handle_head(stream, &request, write_header)
+            }
+        };
     }
 }
