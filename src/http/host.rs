@@ -30,7 +30,7 @@ impl HTTPHost {
         let mut location: Option<&HTTPLocation> = None;
 
         for l in self.locations.iter() {
-            let r = Regex::new(&*l.location).unwrap();
+            let r = Regex::new(format!(r"{}", &*l.location).as_str()).unwrap();
 
             if r.is_match(request.path.as_str()) {
                 let empty = if let None = location {

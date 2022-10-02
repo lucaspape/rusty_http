@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::Write;
 use std::net::TcpStream;
+use std::path::Path;
 use std::process::{Command, Stdio};
 use serde_json::Value;
 use crate::common::mime::MimeType;
@@ -11,19 +12,30 @@ use crate::extension::extension_handler::ExtensionHandler;
 
 pub struct PHPExtension {
     pub root: String,
-    pub target: String
+    pub target: String,
+    pub index_files: Vec<String>
 }
 
 impl Extension for PHPExtension {
     fn configure(&mut self, config: HashMap<String, Value>) {
         self.root = String::from(config.get("root").expect("No root in php extension").as_str().unwrap());
         self.target = String::from(config.get("target").expect("No target in php extension").as_str().unwrap());
+
+        for index_file in config.get("index_files").expect("No index_files in file extension").as_array().unwrap().iter() {
+            self.index_files.push(String::from(index_file.as_str().unwrap()));
+        }
     }
 
     fn handler(&self) -> ExtensionHandler {
+        let mut index_files = String::from("");
+        for file in self.index_files.iter() {
+            index_files += file.as_str();
+            index_files += ",";
+        }
+
         return ExtensionHandler {
             request: Self::handle,
-            args: Vec::from([self.root.clone(), self.target.clone()])
+            args: Vec::from([self.root.clone(), self.target.clone(), index_files])
         };
     }
 
@@ -48,7 +60,31 @@ impl PHPExtension {
             request_path = request_path.replacen(location, "", 1);
         }
 
-        let file_path = args[0].clone() + request_path.as_str();
+        let mut file_path = args[0].clone() + request_path.as_str();
+
+        let path = Path::new(file_path.as_str());
+
+        if !path.exists() {
+            let msg = "No such file or directory";
+
+            if !write_header(stream, HTTPStatus::NotFound, MimeType::Plain, msg.len(), None) {
+                return false;
+            }
+
+            return write_bytes(stream, Vec::from(msg.as_bytes()));
+        }
+
+        if path.is_dir() {
+            for index_file in args[2].split(",") {
+                let file_path_index = String::from(file_path.clone()) + "/" + index_file;
+                let path = Path::new(file_path_index.as_str());
+
+                if path.exists() && !path.is_dir() {
+                    file_path = file_path_index;
+                    break
+                }
+            }
+        }
 
         let mut body_len: usize = 0;
 
@@ -63,6 +99,8 @@ impl PHPExtension {
             .env("REQUEST_METHOD", request.method.get_string())
             .env("CONTENT_LENGTH", format!("{}", body_len))
             .env("CONTENT_TYPE", request.content_type.clone().get())
+            .env("HTTP_HOST", request.host.clone())
+            .env("HTTP_COOKIE", request.cookie.clone())
             .arg("-bind")
             .arg("-connect")
             .arg(args[1].clone())
@@ -78,6 +116,9 @@ impl PHPExtension {
             for l in body.iter() {
                 i.write_all(l.as_bytes()).unwrap();
             }
+
+            println!("{}", request.content_type.clone().get());
+            println!("{:?}", body);
         }
 
         let out = cgi.wait_with_output().unwrap();

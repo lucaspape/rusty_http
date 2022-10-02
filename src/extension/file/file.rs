@@ -14,13 +14,18 @@ use crate::extension::file::index::generate_index;
 
 pub struct FileExtension {
     pub root: String,
-    pub index: bool
+    pub index: bool,
+    pub index_files: Vec<String>
 }
 
 impl Extension for FileExtension {
     fn configure(&mut self, config: HashMap<String, serde_json::Value>) {
         self.root = String::from(config.get("root").expect("No root in file extension").as_str().unwrap());
         self.index = config.get("index").expect("No index in file extension").as_bool().unwrap();
+
+        for index_file in config.get("index_files").expect("No index_files in file extension").as_array().unwrap().iter() {
+            self.index_files.push(String::from(index_file.as_str().unwrap()));
+        }
     }
 
     fn handler(&self) -> ExtensionHandler {
@@ -30,9 +35,15 @@ impl Extension for FileExtension {
             index_string = "true";
         }
 
+        let mut index_files = String::from("");
+        for file in self.index_files.iter() {
+            index_files += file.as_str();
+            index_files += ",";
+        }
+
         ExtensionHandler {
             request: FileExtension::handle,
-            args: Vec::from([self.root.clone(), String::from(index_string)])
+            args: Vec::from([self.root.clone(), String::from(index_string), index_files])
         }
     }
 
@@ -74,8 +85,9 @@ impl FileExtension {
         }
 
         let file_path = args[0].clone() + request_path.as_str();
+        let file_path_str = file_path.as_str();
 
-        let path = Path::new(file_path.as_str());
+        let path = Path::new(file_path_str.clone());
 
         if !path.exists() {
             let msg = "No such file or directory";
@@ -88,6 +100,15 @@ impl FileExtension {
         }
 
         return if path.is_dir() {
+            for index_file in args[2].split(",") {
+                let file_path = String::from(file_path_str.clone()) + "/" + index_file;
+                let path = Path::new(file_path.as_str());
+
+                if path.exists() && !path.is_dir() {
+                    return Self::send_file(stream, request, file_path.as_str(), write_header, write_bytes)
+                }
+            }
+
             if args[1] == "true" {
                 Self::send_index(stream, request.path.as_str(), file_path.as_str(), write_header, write_bytes)
             } else {

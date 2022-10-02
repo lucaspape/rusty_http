@@ -9,7 +9,10 @@
             "path": "/",
             "config": {
               "root": "html/root/",
-              "index": true
+              "index": true,
+              "index_files": [
+                "index.html"
+              ]
             }
           },
           {
@@ -17,7 +20,21 @@
             "extension": "php",
             "config": {
               "root": "html/root/",
-              "target": "localhost:9000"
+              "target": "localhost:9000",
+              "index_files": [
+                "index.php"
+              ]
+            }
+          },
+          {
+            "path": "/wordpress/$",
+            "extension": "php",
+            "config": {
+              "root": "html/root/",
+              "target": "localhost:9000",
+              "index_files": [
+                "index.php"
+              ]
             }
           }
         ]

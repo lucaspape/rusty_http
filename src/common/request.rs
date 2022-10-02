@@ -18,7 +18,8 @@ pub struct HTTPRequest {
     pub referer: String,
     pub if_modified_since: String,
     pub range: String,
-    pub content_type: MimeType
+    pub content_type: MimeType,
+    pub cookie: String,
 }
 
 impl HTTPRequest {
@@ -35,9 +36,10 @@ impl HTTPRequest {
                referer: String,
                if_modified_since: String,
                range: String,
-               content_type: MimeType
+               content_type: MimeType,
+               cookie: String,
     ) -> HTTPRequest {
-        return HTTPRequest{
+        return HTTPRequest {
             method,
             path,
             query,
@@ -51,8 +53,9 @@ impl HTTPRequest {
             referer,
             if_modified_since,
             range,
-            content_type
-        }
+            content_type,
+            cookie,
+        };
     }
 
     pub fn parse(r: Vec<String>) -> HTTPRequest {
@@ -72,12 +75,13 @@ impl HTTPRequest {
         let mut if_modified_since: Option<String> = None;
         let mut range: Option<String> = None;
         let mut content_type: Option<MimeType> = None;
+        let mut cookie: Option<String> = None;
 
         for (i, l) in r.iter().enumerate() {
             if i == 0 {
                 let components: Vec<&str> = l.split_whitespace().collect();
 
-                if components.len() == 3 {
+                if components.len() >= 3 {
                     method = HTTPMethod::parse(components[0]);
 
                     let path_components: Vec<&str> = components[1].split("?").collect();
@@ -85,15 +89,16 @@ impl HTTPRequest {
 
                     if path_components.len() > 1 {
                         query = Some(String::from(path_components[1]));
-                    }else{
+                    } else {
                         query = Some(String::from(""));
                     }
 
                     http_version = Some(String::from(components[2]));
-                }else{
+                } else {
+                    println!("{:?}", components);
                     panic!("wrong first line length")
                 }
-            }else{
+            } else {
                 if host == None {
                     host = Self::parse_header("Host: ", l);
                 }
@@ -131,7 +136,7 @@ impl HTTPRequest {
                     match h_connection.unwrap().to_lowercase().as_str() {
                         "keep-alive" => {
                             connection = HTTPConnection::KeepAlive
-                        },
+                        }
                         "close" => {
                             connection = HTTPConnection::Close
                         }
@@ -142,6 +147,10 @@ impl HTTPRequest {
                 let h_content_type = Self::parse_header("Content-Type: ", l);
                 if h_content_type != None {
                     content_type = MimeType::parse(h_content_type.unwrap().as_str());
+                }
+
+                if cookie == None {
+                    cookie = Self::parse_header("Cookie: ", l);
                 }
             }
         }
@@ -182,6 +191,10 @@ impl HTTPRequest {
             content_type = Some(MimeType::Plain)
         }
 
+        if cookie == None {
+            cookie = Some(String::from(""))
+        }
+
         return HTTPRequest::new(
             method.unwrap(),
             path.unwrap(),
@@ -196,14 +209,15 @@ impl HTTPRequest {
             referer.unwrap(),
             if_modified_since.unwrap(),
             range.unwrap(),
-            content_type.unwrap());
+            content_type.unwrap(),
+            cookie.unwrap());
     }
 
     pub fn parse_header(header: &str, line: &String) -> Option<String> {
         let search = Self::search_header(header, line);
 
         if search == None {
-            return None
+            return None;
         }
 
         let r = RegexBuilder::new(header)
@@ -218,10 +232,10 @@ impl HTTPRequest {
         let s = s.to_uppercase();
 
         if header.to_uppercase().starts_with(&s) {
-            return Some(String::from(header))
+            return Some(String::from(header));
         }
 
-        return None
+        return None;
     }
 }
 

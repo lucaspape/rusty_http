@@ -72,7 +72,8 @@ pub enum MimeType {
     Zip,
     ThreeGp,
     ThreeGp2,
-    SevenZ
+    SevenZ,
+    WWWFormURLEncoded
 }
 
 impl MimeType {
@@ -148,7 +149,8 @@ impl MimeType {
             MimeType::Zip => String::from(APPLICATION_ZIP),
             MimeType::ThreeGp => String::from(VIDEO_3GPP),
             MimeType::ThreeGp2 => String::from(VIDEO_3GPP2),
-            MimeType::SevenZ => String::from(APPLICATION_X_7Z_COMPRESSED)
+            MimeType::SevenZ => String::from(APPLICATION_X_7Z_COMPRESSED),
+            MimeType::WWWFormURLEncoded => String::from(APPLICATION_X_WWW_FORM_URLENCODED)
         }
     }
 
@@ -297,6 +299,8 @@ impl MimeType {
             Some(MimeType::ThreeGp2)
         } else if s.contains(APPLICATION_X_7Z_COMPRESSED) {
             Some(MimeType::SevenZ)
+        } else if s.contains(APPLICATION_X_WWW_FORM_URLENCODED) {
+            Some(MimeType::WWWFormURLEncoded)
         } else {
             None
         };
@@ -464,3 +468,4 @@ const APPLICATION_ZIP: &str = "application/zip";
 const VIDEO_3GPP: &str = "video/3gpp";
 const VIDEO_3GPP2: &str = "video/3gpp2";
 const APPLICATION_X_7Z_COMPRESSED: &str = "application/x-7z-compressed";
+const APPLICATION_X_WWW_FORM_URLENCODED: &str = "application/x-www-form-urlencoded";

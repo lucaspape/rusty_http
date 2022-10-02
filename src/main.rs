@@ -67,11 +67,16 @@ fn get_extension(name: &str) -> Box<dyn Extension> {
         "file" => {
             Box::new(FileExtension{
                 root: "".to_string(),
-                index: false
+                index: false,
+                index_files: Vec::new()
             })
         },
         "php" => {
-            Box::new(PHPExtension{root: "".to_string(), target: "".to_string()})
+            Box::new(PHPExtension{
+                root: "".to_string(),
+                target: "".to_string(),
+                index_files: Vec::new()
+            })
         },
         _ => {
             panic!("Could not find extension {}", name)
