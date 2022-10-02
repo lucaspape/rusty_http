@@ -1,6 +1,6 @@
 use std::net::TcpStream;
 use crate::common::mime::MimeType;
-use crate::common::request::{HTTPMethod, HTTPRequest};
+use crate::common::request::{HTTPRequest};
 use crate::http::location::HTTPLocation;
 use crate::common::status::HTTPStatus;
 use crate::common::status::HTTPStatus::{NotFound};
@@ -55,13 +55,6 @@ impl HTTPHost {
             return write_bytes(stream, Vec::from(String::from("no location").as_bytes()));
         }
 
-        return match request.method {
-            HTTPMethod::GET => {
-                location.unwrap().handle_get(stream, &request, write_header, write_bytes)
-            }
-            HTTPMethod::HEAD => {
-                location.unwrap().handle_head(stream, &request, write_header)
-            }
-        };
+        location.unwrap().handle_request(stream, &request, write_header, write_bytes)
     }
 }

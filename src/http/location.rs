@@ -22,22 +22,12 @@ impl HTTPLocation {
         }
     }
 
-    pub fn handle_get(&self,
+    pub fn handle_request(&self,
                       stream: &TcpStream,
                       request: &HTTPRequest,
                       write_header: fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
                       write_bytes: fn(&TcpStream, Vec<u8>) -> bool
     ) -> bool {
         (self.extension_handler.request)(&*self.location, &*self.root, self.index, stream, request, write_header, write_bytes)
-    }
-
-    pub fn handle_head(&self,
-                       stream: &TcpStream,
-                       request: &HTTPRequest,
-                       write_header: fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool
-    ) -> bool{
-        return self.handle_get(stream, request, write_header, |_, _| {
-           return false;
-        });
     }
 }

@@ -4,7 +4,7 @@ use std::net::TcpStream;
 use std::path::Path;
 use chrono::{DateTime, Utc};
 use crate::common::mime::MimeType;
-use crate::common::request::HTTPRequest;
+use crate::common::request::{HTTPMethod, HTTPRequest};
 use crate::extension::extension::Extension;
 use crate::extension::extension_handler::ExtensionHandler;
 use crate::common::status::HTTPStatus;
@@ -30,8 +30,24 @@ impl FileExtension {
         stream: &TcpStream,
         request: &HTTPRequest,
         write_header: fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
-        write_bytes: fn(&TcpStream, Vec<u8>) -> bool,
+        mut write_bytes: fn(&TcpStream, Vec<u8>) -> bool,
     ) -> bool {
+        if request.method != HTTPMethod::GET && request.method != HTTPMethod::HEAD {
+            let msg = format!("Cannot {} {}", request.method.get_string(), request.path);
+
+            if !write_header(stream, HTTPStatus::BadRequest, MimeType::Plain, msg.len(), None) {
+                return false;
+            }
+
+            return write_bytes(stream, Vec::from(msg.as_bytes()));
+        }
+
+        if request.method == HTTPMethod::HEAD {
+            write_bytes = |_, _| {
+                false
+            }
+        }
+
         let mut request_path = String::from(&*request.path);
 
         if request_path.starts_with(location) {

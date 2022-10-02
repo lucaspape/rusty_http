@@ -228,9 +228,17 @@ impl fmt::Debug for HTTPConnection {
     }
 }
 
+#[derive(PartialEq)]
 pub enum HTTPMethod {
     GET,
-    HEAD
+    HEAD,
+    POST,
+    PUT,
+    DELETE,
+    CONNECT,
+    OPTIONS,
+    TRACE,
+    PATCH
 }
 
 impl HTTPMethod {
@@ -241,6 +249,27 @@ impl HTTPMethod {
             },
             HTTPMethod::HEAD => {
                 "HEAD"
+            },
+            HTTPMethod::POST => {
+                "POST"
+            },
+            HTTPMethod::PUT => {
+                "PUT"
+            },
+            HTTPMethod::DELETE => {
+                "DELETE"
+            },
+            HTTPMethod::CONNECT => {
+                "CONNECT"
+            },
+            HTTPMethod::OPTIONS => {
+                "OPTIONS"
+            },
+            HTTPMethod::TRACE => {
+                "TRACE"
+            },
+            HTTPMethod::PATCH => {
+                "PATCH"
             }
         }
     }
@@ -252,6 +281,20 @@ impl HTTPMethod {
             Some(HTTPMethod::GET)
         }else if upper.contains("HEAD") {
             Some(HTTPMethod::HEAD)
+        }else if upper.contains("POST") {
+            Some(HTTPMethod::POST)
+        }else if upper.contains("PUT") {
+            Some(HTTPMethod::PUT)
+        }else if upper.contains("DELETE") {
+            Some(HTTPMethod::DELETE)
+        }else if upper.contains("CONNECT") {
+            Some(HTTPMethod::CONNECT)
+        }else if upper.contains("OPTIONS") {
+            Some(HTTPMethod::OPTIONS)
+        }else if upper.contains("TRACE") {
+            Some(HTTPMethod::TRACE)
+        }else if upper.contains("PATCH") {
+            Some(HTTPMethod::PATCH)
         }else{
             None
         }
@@ -260,9 +303,6 @@ impl HTTPMethod {
 
 impl fmt::Debug for HTTPMethod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            HTTPMethod::GET => write!(f, "GET"),
-            HTTPMethod::HEAD => write!(f, "HEAD")
-        }
+        write!(f, "{}", self.get_string())
     }
 }
