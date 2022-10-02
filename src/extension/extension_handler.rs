@@ -10,8 +10,9 @@ pub struct ExtensionHandler {
         location: &str,
         stream: &TcpStream,
         request: &HTTPRequest,
+        body: &Vec<String>,
         write_header: fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
         write_bytes: fn(&TcpStream, Vec<u8>) -> bool) -> bool,
-    
+
     pub args: Vec<String>
 }

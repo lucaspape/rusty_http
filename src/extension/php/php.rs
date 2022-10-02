@@ -1,6 +1,7 @@
 use std::collections::HashMap;
+use std::io::Write;
 use std::net::TcpStream;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use serde_json::Value;
 use crate::common::mime::MimeType;
 use crate::common::request::HTTPRequest;
@@ -37,8 +38,9 @@ impl PHPExtension {
         location: &str,
         stream: &TcpStream,
         request: &HTTPRequest,
+        body: &Vec<String>,
         write_header: fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
-        write_bytes: fn(&TcpStream, Vec<u8>) -> bool,
+        write_bytes: fn(&TcpStream, Vec<u8>) -> bool
     ) -> bool {
         let mut request_path = String::from(&*request.path);
 
@@ -48,18 +50,37 @@ impl PHPExtension {
 
         let file_path = args[0].clone() + request_path.as_str();
 
-        let mut cgi = Command::new("cgi-fcgi");
-        cgi.env("SCRIPT_FILENAME", file_path);
-        cgi.env("QUERY_STRING", request.query.as_str());
-        cgi.env("REQUEST_URI", request.path.as_str());
-        cgi.env("REQUEST_METHOD", request.method.get_string());
+        let mut body_len: usize = 0;
 
-        cgi.arg("-bind");
-        cgi.arg("-connect");
-        cgi.arg(args[1].clone());
+        for l in body.iter() {
+            body_len += l.len()
+        }
 
-        let out = cgi.output().unwrap();
+        let mut cgi = Command::new("cgi-fcgi")
+            .env("SCRIPT_FILENAME", file_path.clone())
+            .env("QUERY_STRING", request.query.as_str())
+            .env("REQUEST_URI", request.path.as_str())
+            .env("REQUEST_METHOD", request.method.get_string())
+            .env("CONTENT_LENGTH", format!("{}", body_len))
+            .env("CONTENT_TYPE", request.content_type.clone().get())
+            .arg("-bind")
+            .arg("-connect")
+            .arg(args[1].clone())
+            .stdin(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
 
+        if body_len > 0 {
+            let i = cgi.stdin.as_mut().unwrap();
+
+            for l in body.iter() {
+                i.write_all(l.as_bytes()).unwrap();
+            }
+        }
+
+        let out = cgi.wait_with_output().unwrap();
         let st = String::from_utf8_lossy(&out.stdout);
 
         let mut status = HTTPStatus::OK;

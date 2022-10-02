@@ -23,8 +23,9 @@ impl HTTPHost {
     pub fn handle_request(&self,
                           stream: &TcpStream,
                           request: &HTTPRequest,
+                          body: &Vec<String>,
                           write_header: fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
-                          write_bytes: fn(&TcpStream, Vec<u8>) -> bool,
+                          write_bytes: fn(&TcpStream, Vec<u8>,) -> bool
     ) -> bool {
         let mut location: Option<&HTTPLocation> = None;
 
@@ -54,6 +55,6 @@ impl HTTPHost {
             return write_bytes(stream, Vec::from(String::from("no location").as_bytes()));
         }
 
-        location.unwrap().handle_request(stream, &request, write_header, write_bytes)
+        location.unwrap().handle_request(stream, request, body, write_header, write_bytes)
     }
 }

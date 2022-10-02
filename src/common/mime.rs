@@ -1,5 +1,6 @@
 use std::path::Path;
 
+#[derive(Clone)]
 pub enum MimeType {
     OctetStream,
     Aac,

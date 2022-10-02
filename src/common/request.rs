@@ -2,6 +2,7 @@ use std::fmt;
 use regex::{RegexBuilder};
 use crate::common::connection::HTTPConnection;
 use crate::common::method::HTTPMethod;
+use crate::common::mime::MimeType;
 
 pub struct HTTPRequest {
     pub method: HTTPMethod,
@@ -16,7 +17,8 @@ pub struct HTTPRequest {
     pub connection: HTTPConnection,
     pub referer: String,
     pub if_modified_since: String,
-    pub range: String
+    pub range: String,
+    pub content_type: MimeType
 }
 
 impl HTTPRequest {
@@ -32,7 +34,8 @@ impl HTTPRequest {
                connection: HTTPConnection,
                referer: String,
                if_modified_since: String,
-               range: String
+               range: String,
+               content_type: MimeType
     ) -> HTTPRequest {
         return HTTPRequest{
             method,
@@ -47,7 +50,8 @@ impl HTTPRequest {
             connection,
             referer,
             if_modified_since,
-            range
+            range,
+            content_type
         }
     }
 
@@ -67,6 +71,7 @@ impl HTTPRequest {
         let mut referer: Option<String> = None;
         let mut if_modified_since: Option<String> = None;
         let mut range: Option<String> = None;
+        let mut content_type: Option<MimeType> = None;
 
         for (i, l) in r.iter().enumerate() {
             if i == 0 {
@@ -133,6 +138,11 @@ impl HTTPRequest {
                         _ => panic!("unknown connection type")
                     }
                 }
+
+                let h_content_type = Self::parse_header("Content-Type: ", l);
+                if h_content_type != None {
+                    content_type = MimeType::parse(h_content_type.unwrap().as_str());
+                }
             }
         }
 
@@ -168,6 +178,10 @@ impl HTTPRequest {
             range = Some(String::from(""))
         }
 
+        if let None = content_type {
+            content_type = Some(MimeType::Plain)
+        }
+
         return HTTPRequest::new(
             method.unwrap(),
             path.unwrap(),
@@ -181,7 +195,8 @@ impl HTTPRequest {
             connection,
             referer.unwrap(),
             if_modified_since.unwrap(),
-            range.unwrap());
+            range.unwrap(),
+            content_type.unwrap());
     }
 
     pub fn parse_header(header: &str, line: &String) -> Option<String> {

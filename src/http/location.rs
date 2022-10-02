@@ -21,9 +21,10 @@ impl HTTPLocation {
     pub fn handle_request(&self,
                       stream: &TcpStream,
                       request: &HTTPRequest,
+                      body: &Vec<String>,
                       write_header: fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
                       write_bytes: fn(&TcpStream, Vec<u8>) -> bool
     ) -> bool {
-        (self.extension_handler.request)(self.extension_handler.args.clone(), &*self.location, stream, request, write_header, write_bytes)
+        (self.extension_handler.request)(self.extension_handler.args.clone(), &*self.location, stream, request, body, write_header, write_bytes)
     }
 }

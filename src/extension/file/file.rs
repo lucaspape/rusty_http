@@ -47,8 +47,9 @@ impl FileExtension {
         location: &str,
         stream: &TcpStream,
         request: &HTTPRequest,
+        _body: &Vec<String>,
         write_header: fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
-        mut write_bytes: fn(&TcpStream, Vec<u8>) -> bool,
+        mut write_bytes: fn(&TcpStream, Vec<u8>) -> bool
     ) -> bool {
         if request.method != HTTPMethod::GET && request.method != HTTPMethod::HEAD {
             let msg = format!("Cannot {} {}", request.method.get_string(), request.path);

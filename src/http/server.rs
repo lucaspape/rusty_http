@@ -41,36 +41,23 @@ impl HTTPServer {
     }
 
     fn handle_stream(mut stream: TcpStream, default_host: HTTPHost,hosts: Vec<HTTPHost>) {
-        let buf_reader = BufReader::new(&mut stream);
+        let read = Self::read_request(&stream);
 
-        let lines = buf_reader.lines();
-
-        let mut closed = false;
-
-        let r: Vec<_> =
-            lines
-                .map(|result| {
-                    return match result {
-                        Ok(result) => {
-                            result
-                        },
-                        Err(_) => {
-                            closed = true;
-                            String::from("")
-                        }
-                    }
-                })
-                .take_while(|line| !line.is_empty())
-                .collect();
-
-        if r.len() == 0 || closed {
+        if read == None {
             let _ = stream.shutdown(Both);
 
             return;
         }
 
-        let request = HTTPRequest::parse(r);
+        let (header, body) = read.unwrap();
 
+        if header.len() == 0 {
+            let _ = stream.shutdown(Both);
+
+            return;
+        }
+
+        let request = HTTPRequest::parse(header);
         println!("{:?}", request);
 
         let mut host: Option<&HTTPHost> = None;
@@ -86,7 +73,7 @@ impl HTTPServer {
             host = Some(&default_host);
         }
 
-        if !host.unwrap().handle_request(&stream, &request, Self::write_header, Self::write_bytes) {
+        if !host.unwrap().handle_request(&stream, &request, &body, Self::write_header, Self::write_bytes) {
             return
         }
 
@@ -95,6 +82,54 @@ impl HTTPServer {
         if request.connection == KeepAlive {
             HTTPServer::handle_stream(stream, default_host, hosts);
         }
+    }
+
+    fn read_request(stream: &TcpStream) -> Option<(Vec<String>, Vec<String>)> {
+        let mut header: Vec<String> = Vec::new();
+        let mut body: Vec<String> = Vec::new();
+
+        let mut read_header = false;
+
+        const CAP: usize = 1024 * 128;
+        let mut reader = BufReader::with_capacity(CAP, stream);
+
+        loop {
+            let length = {
+                match reader.fill_buf() {
+                    Ok(buffer) => {
+                        let s = String::from_utf8_lossy(&buffer);
+
+                        for l in s.lines(){
+                            if read_header {
+                                body.push(String::from(l));
+                            }else{
+                                if l.is_empty() {
+                                    read_header = true;
+                                }else{
+                                    header.push(String::from(l))
+                                }
+                            }
+                        }
+
+                        buffer.len()
+                    }
+
+                    Err(error) => {
+                        println!("{}", error);
+
+                        return None;
+                    }
+                }
+            };
+
+            if length == 0 || length < CAP {
+                break;
+            }
+
+            reader.consume(length);
+        }
+
+        return Some((header, body));
     }
 
     fn write_header(stream: &TcpStream, status: HTTPStatus, content_type: MimeType, content_length: usize, additional: Option<Vec<String>>) -> bool {
