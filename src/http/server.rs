@@ -2,8 +2,8 @@ use std::{thread};
 use std::io::{prelude::*, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::net::Shutdown::Both;
+use crate::common::connection::HTTPConnection::KeepAlive;
 use crate::common::mime::MimeType;
-use crate::common::request::HTTPConnection::KeepAlive;
 use crate::common::request::HTTPRequest;
 
 use crate::http::host::HTTPHost;

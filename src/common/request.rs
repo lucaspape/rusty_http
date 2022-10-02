@@ -1,5 +1,6 @@
 use std::fmt;
 use regex::{RegexBuilder};
+use crate::common::connection::HTTPConnection;
 use crate::common::method::HTTPMethod;
 
 pub struct HTTPRequest {
@@ -211,20 +212,5 @@ impl fmt::Debug for HTTPRequest {
             .field("referer", &self.referer)
 
             .finish()
-    }
-}
-
-#[derive(PartialEq)]
-pub enum HTTPConnection {
-    KeepAlive,
-    Close
-}
-
-impl fmt::Debug for HTTPConnection {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            HTTPConnection::KeepAlive => write!(f, "Keep-Alive"),
-            HTTPConnection::Close => write!(f, "Close"),
-        }
     }
 }

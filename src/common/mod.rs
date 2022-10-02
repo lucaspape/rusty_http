@@ -3,3 +3,4 @@ pub mod mime;
 pub mod request;
 pub mod status;
 pub mod method;
+pub mod connection;
