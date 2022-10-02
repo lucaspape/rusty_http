@@ -11,8 +11,9 @@
             "index": true
           },
           {
-            "path": "/test/",
-            "root": "html/test2/"
+            "path": "([a-zA-Z0-9\\s_\\\\.\\-\\(\\):])+(.php)$",
+            "root": "html/root/",
+            "extension": "php"
           }
         ]
       },

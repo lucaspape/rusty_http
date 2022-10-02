@@ -1,4 +1,5 @@
 use std::net::TcpStream;
+use regex::Regex;
 use crate::common::mime::MimeType;
 use crate::common::request::{HTTPRequest};
 use crate::http::location::HTTPLocation;
@@ -26,21 +27,19 @@ impl HTTPHost {
                           write_bytes: fn(&TcpStream, Vec<u8>) -> bool,
     ) -> bool {
         let mut location: Option<&HTTPLocation> = None;
-        let mut responsibility = 0;
 
         for l in self.locations.iter() {
-            if request.path.starts_with(&*l.location) {
-                let r = request.path.replace(&*l.location, "").len();
+            let r = Regex::new(&*l.location).unwrap();
 
+            if r.is_match(request.path.as_str()) {
                 let empty = if let None = location {
                     true
                 } else {
                     false
                 };
 
-                if r < responsibility || empty {
+                if empty || location.unwrap().location.len() < l.location.len() {
                     location = Some(l);
-                    responsibility = r
                 }
             }
         }
