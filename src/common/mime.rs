@@ -143,12 +143,162 @@ impl MimeType {
             MimeType::MSExcel => String::from(APPLICATION_VND_MS_EXCEL),
             MimeType::MSExcelOpenXML => String::from(APPLICATION_VND_OPENXMLFORMATS_OFFICEDOCUMENT_SPREADSHEET_SHEET),
             MimeType::Xml => String::from(APPLICATION_XML),
-            MimeType::Xul => String::from(AAPPLICATION_VND_MOZILLA_XUL_XML),
+            MimeType::Xul => String::from(APPLICATION_VND_MOZILLA_XUL_XML),
             MimeType::Zip => String::from(APPLICATION_ZIP),
             MimeType::ThreeGp => String::from(VIDEO_3GPP),
             MimeType::ThreeGp2 => String::from(VIDEO_3GPP2),
             MimeType::SevenZ => String::from(APPLICATION_X_7Z_COMPRESSED)
         }
+    }
+
+    pub fn parse(s: &str) -> Option<MimeType> {
+        let s = s.to_lowercase();
+
+        return if s.contains(APPLICATION_OCTET_STREAM) {
+            Some(MimeType::OctetStream)
+        } else if s.contains(AUDIO_AAC) {
+            Some(MimeType::Aac)
+        } else if s.contains(APPLICATION_X_ABIWORD) {
+            Some(MimeType::AbiWord)
+        } else if s.contains(APPLICATION_X_FREEARC) {
+            Some(MimeType::FreeArc)
+        } else if s.contains(IMAGE_AVIF) {
+            Some(MimeType::Avif)
+        } else if s.contains(VIDEO_X_MSVIDEO) {
+            Some(MimeType::MsVideo)
+        } else if s.contains(APPLICATION_VND_AMAZON_EBOOK) {
+            Some(MimeType::AmazonEbook)
+        } else if s.contains(IMAGE_BMP) {
+            Some(MimeType::Bitmap)
+        } else if s.contains(APPLICATION_X_BZIP) {
+            Some(MimeType::Bzip)
+        } else if s.contains(APPLICATION_X_BZIP2) {
+            Some(MimeType::Bzip2)
+        } else if s.contains(APPLICATION_X_CDF) {
+            Some(MimeType::Cdf)
+        } else if s.contains(APPLICATION_X_CSH) {
+            Some(MimeType::Csh)
+        } else if s.contains(TEXT_CSS) {
+            Some(MimeType::Css)
+        } else if s.contains(TEXT_CSV) {
+            Some(MimeType::Csv)
+        } else if s.contains(APPLICATION_MSWORD) {
+            Some(MimeType::MSWord)
+        } else if s.contains(APPLICATION_VND_OPENXMLFORMATS_OFFICEDOCUMENT_WORDPROCESSINGML_DOCUMENT) {
+            Some(MimeType::MSExcelOpenXML)
+        } else if s.contains(APPLICATION_VND_MS_FONTOBJECT) {
+            Some(MimeType::MSFontObject)
+        } else if s.contains(APPLICATION_EPUB_ZIP) {
+            Some(MimeType::Epub)
+        } else if s.contains(APPLICATION_GZIP) {
+            Some(MimeType::Gzip)
+        } else if s.contains(IMAGE_GIF) {
+            Some(MimeType::Gif)
+        } else if s.contains(TEXT_HTML) {
+            Some(MimeType::Html)
+        } else if s.contains(IMAGE_VNC_MICROSOFT_ICON) {
+            Some(MimeType::Icon)
+        } else if s.contains(TEXT_CALENDAR) {
+            Some(MimeType::Calendar)
+        } else if s.contains(APPLICATION_JAVA_ARCHIVE) {
+            Some(MimeType::JavaArchive)
+        } else if s.contains(IMAGE_JPEG) {
+            Some(MimeType::Jpeg)
+        } else if s.contains(TEXT_JAVASCRIPT) {
+            Some(MimeType::JavaScript)
+        } else if s.contains(APPLICATION_JSON) {
+            Some(MimeType::Json)
+        } else if s.contains(APPLICATION_LD_JSON) {
+            Some(MimeType::LDJson)
+        } else if s.contains(AUDIO_MIDI) {
+            Some(MimeType::Midi)
+        } else if s.contains(AUDIO_MPEG) {
+            Some(MimeType::Mpeg)
+        } else if s.contains(VIDEO_MP4) {
+            Some(MimeType::MP4)
+        } else if s.contains(VIDEO_MPEG) {
+            Some(MimeType::MpegVideo)
+        } else if s.contains(APPLICATION_VND_APPLE_INSTALLER_XML) {
+            Some(MimeType::AppleInstaller)
+        } else if s.contains(APPLICATION_VND_OASIS_OPENDOCUMENT_PRESENTATION) {
+            Some(MimeType::OpenDocumentPresentation)
+        } else if s.contains(APPLICATION_VND_OASIS_OPENDOCUMENT_SPREADSHEET) {
+            Some(MimeType::OpenDocumentSpreadsheet)
+        } else if s.contains(APPLICATION_VND_OASIS_OPENDOCUMENT_TEXT) {
+            Some(MimeType::OpenDocumentText)
+        } else if s.contains(AUDIO_OGG) {
+            Some(MimeType::OggAudio)
+        } else if s.contains(VIDEO_OGG) {
+            Some(MimeType::OggVideo)
+        } else if s.contains(APPLICATION_OGG) {
+            Some(MimeType::OggApplication)
+        } else if s.contains(AUDIO_OPUS) {
+            Some(MimeType::Opus)
+        } else if s.contains(FONT_OTF) {
+            Some(MimeType::Otf)
+        } else if s.contains(IMAGE_PNG) {
+            Some(MimeType::Png)
+        } else if s.contains(APPLICATION_PDF) {
+            Some(MimeType::Pdf)
+        } else if s.contains(APPLICATION_X_HTTPD_PHP) {
+            Some(MimeType::Php)
+        } else if s.contains(APPLICATION_VND_MS_POWERPOINT) {
+            Some(MimeType::MSPowerPoint)
+        } else if s.contains(APPLICATION_VND_OPENXMLFORMATS_OFFICEDOCUMENT_PRESENTATIONML_PRESENTATION) {
+            Some(MimeType::MSPowerPointOpenXML)
+        } else if s.contains(APPLICATION_VND_RAR) {
+            Some(MimeType::Rar)
+        } else if s.contains(APPLICATION_RTF) {
+            Some(MimeType::Rtf)
+        } else if s.contains(APPLICATION_X_SH) {
+            Some(MimeType::Sh)
+        } else if s.contains(IMAGE_SVG_XML) {
+            Some(MimeType::Svg)
+        } else if s.contains(APPLICATION_X_TAR) {
+            Some(MimeType::Tar)
+        } else if s.contains(IMAGE_TIFF) {
+            Some(MimeType::Tiff)
+        } else if s.contains(VIDEO_MP2T) {
+            Some(MimeType::Mp2t)
+        } else if s.contains(FONT_TTF) {
+            Some(MimeType::Ttf)
+        } else if s.contains(TEXT_PLAIN) {
+            Some(MimeType::Plain)
+        } else if s.contains(APPLICATION_VND_VISIO) {
+            Some(MimeType::MSVisio)
+        } else if s.contains(AUDIO_WAV) {
+            Some(MimeType::Wav)
+        } else if s.contains(AUDIO_WEBM) {
+            Some(MimeType::WebmAudio)
+        } else if s.contains(VIDEO_WEBM) {
+            Some(MimeType::WebmVideo)
+        } else if s.contains(IMAGE_WEBP) {
+            Some(MimeType::Webp)
+        } else if s.contains(FONT_WOFF) {
+            Some(MimeType::Woff)
+        } else if s.contains(FONT_WOFF2) {
+            Some(MimeType::Woff2)
+        } else if s.contains(APPLICATION_XHTML_XML) {
+            Some(MimeType::Xhtml)
+        } else if s.contains(APPLICATION_VND_MS_EXCEL) {
+            Some(MimeType::MSExcel)
+        } else if s.contains(APPLICATION_VND_OPENXMLFORMATS_OFFICEDOCUMENT_SPREADSHEET_SHEET) {
+            Some(MimeType::MSExcelOpenXML)
+        } else if s.contains(APPLICATION_XML) {
+            Some(MimeType::Xml)
+        } else if s.contains(APPLICATION_VND_MOZILLA_XUL_XML) {
+            Some(MimeType::Xul)
+        } else if s.contains(APPLICATION_ZIP) {
+            Some(MimeType::Zip)
+        } else if s.contains(VIDEO_3GPP) {
+            Some(MimeType::ThreeGp)
+        } else if s.contains(VIDEO_3GPP2) {
+            Some(MimeType::ThreeGp2)
+        } else if s.contains(APPLICATION_X_7Z_COMPRESSED) {
+            Some(MimeType::SevenZ)
+        } else {
+            None
+        };
     }
 
     pub fn from_file_path(f: &str) -> MimeType {
@@ -308,7 +458,7 @@ const APPLICATION_XHTML_XML: &str = "application/xhtml+xml";
 const APPLICATION_VND_MS_EXCEL: &str = "application/vnd.ms-excel";
 const APPLICATION_VND_OPENXMLFORMATS_OFFICEDOCUMENT_SPREADSHEET_SHEET: &str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const APPLICATION_XML: &str = "application/xml";
-const AAPPLICATION_VND_MOZILLA_XUL_XML: &str = "application/vnd.mozilla.xul+xml";
+const APPLICATION_VND_MOZILLA_XUL_XML: &str = "application/vnd.mozilla.xul+xml";
 const APPLICATION_ZIP: &str = "application/zip";
 const VIDEO_3GPP: &str = "video/3gpp";
 const VIDEO_3GPP2: &str = "video/3gpp2";

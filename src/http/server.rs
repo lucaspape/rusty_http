@@ -71,6 +71,8 @@ impl HTTPServer {
 
         let request = HTTPRequest::parse(r);
 
+        println!("{:?}", request);
+
         let mut host: Option<&HTTPHost> = None;
 
         for h in hosts.iter() {

@@ -4,7 +4,8 @@ use std::thread;
 use std::time::Duration;
 use crate::config::{HostConfig, RustyHTTPConfig};
 use crate::extension::extension::Extension;
-use crate::extension::file::file_extension::FileExtension;
+use crate::extension::file::file::FileExtension;
+use crate::extension::php::php::PHPExtension;
 use crate::http::host::HTTPHost;
 use crate::http::location::HTTPLocation;
 use crate::http::server::HTTPServer;
@@ -70,7 +71,10 @@ fn get_extension(name: &str) -> Box<dyn Extension> {
     return match name {
         "file" => {
             Box::new(FileExtension{})
-        }
+        },
+        "php" => {
+            Box::new(PHPExtension{})
+        },
         _ => {
             panic!("Could not find extension {}", name)
         }

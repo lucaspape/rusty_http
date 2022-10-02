@@ -16,6 +16,22 @@ impl HTTPStatus {
             HTTPStatus::InternalServerError => (INTERNAL_SERVER_ERROR.0, String::from(INTERNAL_SERVER_ERROR.1))
         }
     }
+
+    pub fn parse(s: &str) -> Option<HTTPStatus> {
+        return if s.contains("200") {
+            Some(HTTPStatus::OK)
+        }else if s.contains("206") {
+            Some(HTTPStatus::PartialContent)
+        }else if s.contains("304") {
+            Some(HTTPStatus::NotModified)
+        }else if s.contains("404") {
+            Some(HTTPStatus::NotFound)
+        }else if s.contains("500") {
+            Some(HTTPStatus::InternalServerError)
+        }else{
+            None
+        }
+    }
 }
 
 const OK: (i16, &str) = (200, "OK");

@@ -1,4 +1,5 @@
 use std::fmt;
+use regex::{RegexBuilder};
 
 pub struct HTTPRequest {
     pub method: HTTPMethod,
@@ -52,25 +53,21 @@ impl HTTPRequest {
         let mut path: Option<String> = None;
         let mut http_version: Option<String> = None;
         let mut host: Option<String> = None;
-        let mut user_agent: String = String::from("");
-        let mut accept: String = String::from("");
-        let mut accept_language: String = String::from("");
-        let mut accept_encoding: String = String::from("");
+        let mut user_agent: Option<String> = None;
+        let mut accept: Option<String> = None;
+        let mut accept_language: Option<String> = None;
+        let mut accept_encoding: Option<String> = None;
         let mut connection: HTTPConnection = HTTPConnection::Close;
-        let mut referer: String = String::from("");
-        let mut if_modified_since: String = String::from("");
-        let mut range: String = String::from("");
+        let mut referer: Option<String> = None;
+        let mut if_modified_since: Option<String> = None;
+        let mut range: Option<String> = None;
 
         for (i, l) in r.iter().enumerate() {
             if i == 0 {
                 let components: Vec<&str> = l.split_whitespace().collect();
 
                 if components.len() == 3 {
-                    match components[0] {
-                        "GET" => method = Some(HTTPMethod::GET),
-                        "HEAD" => method = Some(HTTPMethod::HEAD),
-                        _ => panic!("unknown http method")
-                    }
+                    method = HTTPMethod::parse(components[0]);
 
                     path = Some(String::from(components[1]));
                     http_version = Some(String::from(components[2]));
@@ -78,28 +75,41 @@ impl HTTPRequest {
                     panic!("wrong first line length")
                 }
             }else{
-                let header_host = "Host: ";
-                let header_user_agent = "User-Agent: ";
-                let header_accept = "Accept: ";
-                let header_accept_language = "Accept-Language: ";
-                let header_accept_encoding = "Accept-Encoding: ";
-                let header_connection = "Connection: ";
-                let header_referer = "Referer: ";
-                let header_if_modified_since = "If-Modified-Since: ";
-                let header_range = "Range: ";
+                if host == None {
+                    host = Self::parse_header("Host: ", l);
+                }
 
-                if l.starts_with(header_host) {
-                    host = Some(l.replace(header_host, ""));
-                } else if l.starts_with(header_user_agent) {
-                    user_agent = l.replace(header_user_agent, "");
-                } else if l.starts_with(header_accept) {
-                    accept = l.replace(header_accept, "");
-                } else if l.starts_with(header_accept_language) {
-                    accept_language = l.replace(header_accept_language, "");
-                } else if l.starts_with(header_accept_encoding) {
-                    accept_encoding = l.replace(header_accept_encoding, "");
-                } else if l.starts_with(header_connection) {
-                    match l.replace(header_connection, "").to_lowercase().as_str() {
+                if user_agent == None {
+                    user_agent = Self::parse_header("User-Agent: ", l);
+                }
+
+                if accept == None {
+                    accept = Self::parse_header("Accept: ", l);
+                }
+
+                if accept_language == None {
+                    accept_language = Self::parse_header("Accept-Language: ", l);
+                }
+
+                if accept_encoding == None {
+                    accept_encoding = Self::parse_header("Accept-Encoding: ", l);
+                }
+
+                if referer == None {
+                    referer = Self::parse_header("Referer: ", l);
+                }
+
+                if if_modified_since == None {
+                    if_modified_since = Self::parse_header("If-Modified-Since: ", l);
+                }
+
+                if range == None {
+                    range = Self::parse_header("Range: ", l);
+                }
+
+                let h_connection = Self::parse_header("Connection: ", l);
+                if h_connection != None {
+                    match h_connection.unwrap().to_lowercase().as_str() {
                         "keep-alive" => {
                             connection = HTTPConnection::KeepAlive
                         },
@@ -108,14 +118,40 @@ impl HTTPRequest {
                         }
                         _ => panic!("unknown connection type")
                     }
-                } else if l.starts_with(header_referer) {
-                    referer = l.replace(header_referer, "");
-                } else if l.starts_with(header_if_modified_since) {
-                    if_modified_since = l.replace(header_if_modified_since, "");
-                } else if l.starts_with(header_range) {
-                    range = l.replace(header_range, "");
                 }
             }
+        }
+
+        if host == None {
+            host = Some(String::from(""))
+        }
+
+        if user_agent == None {
+            user_agent = Some(String::from(""))
+        }
+
+        if accept == None {
+            accept = Some(String::from(""))
+        }
+
+        if accept_language == None {
+            accept_language = Some(String::from(""))
+        }
+
+        if accept_encoding == None {
+            accept_encoding = Some(String::from(""))
+        }
+
+        if referer == None {
+            referer = Some(String::from(""))
+        }
+
+        if if_modified_since == None {
+            if_modified_since = Some(String::from(""))
+        }
+
+        if range == None {
+            range = Some(String::from(""))
         }
 
         return HTTPRequest::new(
@@ -123,13 +159,39 @@ impl HTTPRequest {
             path.unwrap(),
             http_version.unwrap(),
             host.unwrap(),
-            user_agent, accept,
-            accept_language,
-            accept_encoding,
+            user_agent.unwrap(),
+            accept.unwrap(),
+            accept_language.unwrap(),
+            accept_encoding.unwrap(),
             connection,
-            referer,
-            if_modified_since,
-            range);
+            referer.unwrap(),
+            if_modified_since.unwrap(),
+            range.unwrap());
+    }
+
+    pub fn parse_header(header: &str, line: &String) -> Option<String> {
+        let search = Self::search_header(header, line);
+
+        if search == None {
+            return None
+        }
+
+        let r = RegexBuilder::new(header)
+            .case_insensitive(true)
+            .build()
+            .unwrap();
+
+        return Some(String::from(r.replace(search.unwrap().as_str(), "")));
+    }
+
+    pub fn search_header(s: &str, header: &String) -> Option<String> {
+        let s = s.to_uppercase();
+
+        if header.to_uppercase().starts_with(&s) {
+            return Some(String::from(header))
+        }
+
+        return None
     }
 }
 
@@ -169,6 +231,31 @@ impl fmt::Debug for HTTPConnection {
 pub enum HTTPMethod {
     GET,
     HEAD
+}
+
+impl HTTPMethod {
+    pub fn get_string(&self) -> &str {
+        match self {
+            HTTPMethod::GET => {
+                "GET"
+            },
+            HTTPMethod::HEAD => {
+                "HEAD"
+            }
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<HTTPMethod> {
+        let upper = s.to_uppercase();
+
+        return if upper.contains("GET") {
+            Some(HTTPMethod::GET)
+        }else if upper.contains("HEAD") {
+            Some(HTTPMethod::HEAD)
+        }else{
+            None
+        }
+    }
 }
 
 impl fmt::Debug for HTTPMethod {
