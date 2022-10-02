@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +34,5 @@ pub struct HostConfig {
 pub struct LocationConfig {
     pub path: String,
     pub extension: Option<String>,
-    pub root: String,
-    pub index: Option<bool>
+    pub config: Option<HashMap<String, serde_json::Value>>
 }

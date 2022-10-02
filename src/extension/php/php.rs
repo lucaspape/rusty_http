@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::net::TcpStream;
 use std::process::Command;
+use serde_json::Value;
 use crate::common::mime::MimeType;
 use crate::common::request::HTTPRequest;
 use crate::common::status::HTTPStatus;
@@ -7,12 +9,21 @@ use crate::Extension;
 use crate::extension::extension_handler::ExtensionHandler;
 
 pub struct PHPExtension {
-
+    pub root: String,
+    pub target: String
 }
 
 impl Extension for PHPExtension {
+    fn configure(&mut self, config: HashMap<String, Value>) {
+        self.root = String::from(config.get("root").expect("No root in php extension").as_str().unwrap());
+        self.target = String::from(config.get("target").expect("No target in php extension").as_str().unwrap());
+    }
+
     fn handler(&self) -> ExtensionHandler {
-        return ExtensionHandler{request: Self::handle}
+        return ExtensionHandler {
+            request: Self::handle,
+            args: Vec::from([self.root.clone(), self.target.clone()])
+        };
     }
 
     fn name(&self) -> String {
@@ -22,9 +33,8 @@ impl Extension for PHPExtension {
 
 impl PHPExtension {
     fn handle(
+        args: Vec<String>,
         location: &str,
-        root: &str,
-        index: bool,
         stream: &TcpStream,
         request: &HTTPRequest,
         write_header: fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
@@ -36,7 +46,7 @@ impl PHPExtension {
             request_path = request_path.replacen(location, "", 1);
         }
 
-        let file_path = String::from(root) + request_path.as_str();
+        let file_path = args[0].clone() + request_path.as_str();
 
         let mut cgi = Command::new("cgi-fcgi");
         cgi.env("SCRIPT_FILENAME", file_path);
@@ -46,7 +56,7 @@ impl PHPExtension {
 
         cgi.arg("-bind");
         cgi.arg("-connect");
-        cgi.arg("localhost:9000");
+        cgi.arg(args[1].clone());
 
         let out = cgi.output().unwrap();
 
@@ -63,7 +73,7 @@ impl PHPExtension {
             if header_done {
                 content += line;
                 content += "\n"
-            }else{
+            } else {
                 let mut is_additional = true;
 
                 if line.is_empty() {
@@ -90,7 +100,7 @@ impl PHPExtension {
         }
 
         if !write_header(stream, status, content_type, content.len(), Some(additional_headers)) {
-            return false
+            return false;
         }
 
         return write_bytes(stream, Vec::from(content.as_bytes()));

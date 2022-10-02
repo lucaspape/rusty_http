@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::net::TcpStream;
@@ -10,11 +11,28 @@ use crate::extension::extension_handler::ExtensionHandler;
 use crate::common::status::HTTPStatus;
 use crate::extension::file::index::generate_index;
 
-pub struct FileExtension {}
+pub struct FileExtension {
+    pub root: String,
+    pub index: bool
+}
 
 impl Extension for FileExtension {
+    fn configure(&mut self, config: HashMap<String, serde_json::Value>) {
+        self.root = String::from(config.get("root").expect("No root in file extension").as_str().unwrap());
+        self.index = config.get("index").expect("No index in file extension").as_bool().unwrap();
+    }
+
     fn handler(&self) -> ExtensionHandler {
-        ExtensionHandler { request: FileExtension::handle }
+        let mut index_string = "false";
+
+        if self.index {
+            index_string = "true";
+        }
+
+        ExtensionHandler {
+            request: FileExtension::handle,
+            args: Vec::from([self.root.clone(), String::from(index_string)])
+        }
     }
 
     fn name(&self) -> String {
@@ -24,9 +42,8 @@ impl Extension for FileExtension {
 
 impl FileExtension {
     fn handle(
+        args: Vec<String>,
         location: &str,
-        root: &str,
-        index: bool,
         stream: &TcpStream,
         request: &HTTPRequest,
         write_header: fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
@@ -54,7 +71,7 @@ impl FileExtension {
             request_path = request_path.replacen(location, "", 1);
         }
 
-        let file_path = String::from(root) + request_path.as_str();
+        let file_path = args[0].clone() + request_path.as_str();
 
         let path = Path::new(file_path.as_str());
 
@@ -69,7 +86,7 @@ impl FileExtension {
         }
 
         return if path.is_dir() {
-            if index {
+            if args[1] == "true" {
                 Self::send_index(stream, request.path.as_str(), file_path.as_str(), write_header, write_bytes)
             } else {
                 let msg = "Forbidden";

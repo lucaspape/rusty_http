@@ -47,21 +47,16 @@ fn create_host(config: &HostConfig) -> HTTPHost {
     let mut host_locations: Vec<HTTPLocation> = Vec::new();
 
     for l in config.locations.iter() {
-        let mut index = false;
-
-        if l.index != None {
-            index = l.index.unwrap()
-        }
-
         let mut extension_name = "file";
 
         if l.extension != None {
             extension_name = l.extension.as_ref().unwrap().as_str();
         }
 
-        let extension = get_extension(extension_name);
+        let mut extension = get_extension(extension_name);
+        extension.configure(l.config.clone().unwrap());
 
-        host_locations.push(HTTPLocation::new(l.path.as_str(), l.root.as_str(), index, extension.handler()))
+        host_locations.push(HTTPLocation::new(l.path.as_str(), extension.handler()))
     }
 
     return HTTPHost::new(config.server_name.as_str(), host_locations);
@@ -70,10 +65,13 @@ fn create_host(config: &HostConfig) -> HTTPHost {
 fn get_extension(name: &str) -> Box<dyn Extension> {
     return match name {
         "file" => {
-            Box::new(FileExtension{})
+            Box::new(FileExtension{
+                root: "".to_string(),
+                index: false
+            })
         },
         "php" => {
-            Box::new(PHPExtension{})
+            Box::new(PHPExtension{root: "".to_string(), target: "".to_string()})
         },
         _ => {
             panic!("Could not find extension {}", name)

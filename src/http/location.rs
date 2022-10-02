@@ -7,17 +7,13 @@ use crate::common::status::HTTPStatus;
 #[derive(Clone)]
 pub struct HTTPLocation {
     pub location: String,
-    root: String,
-    index: bool,
     extension_handler: ExtensionHandler
 }
 
 impl HTTPLocation {
-    pub fn new(location: &str, root: &str, index: bool, extension_handler: ExtensionHandler) -> HTTPLocation {
+    pub fn new(location: &str, extension_handler: ExtensionHandler) -> HTTPLocation {
         return HTTPLocation{
             location: String::from(location),
-            root: String::from(root),
-            index,
             extension_handler
         }
     }
@@ -28,6 +24,6 @@ impl HTTPLocation {
                       write_header: fn(&TcpStream, HTTPStatus, MimeType, usize, Option<Vec<String>>) -> bool,
                       write_bytes: fn(&TcpStream, Vec<u8>) -> bool
     ) -> bool {
-        (self.extension_handler.request)(&*self.location, &*self.root, self.index, stream, request, write_header, write_bytes)
+        (self.extension_handler.request)(self.extension_handler.args.clone(), &*self.location, stream, request, write_header, write_bytes)
     }
 }

@@ -7,13 +7,18 @@
         "locations": [
           {
             "path": "/",
-            "root": "html/root/",
-            "index": true
+            "config": {
+              "root": "html/root/",
+              "index": true
+            }
           },
           {
             "path": "([a-zA-Z0-9\\s_\\\\.\\-\\(\\):])+(.php)$",
-            "root": "html/root/",
-            "extension": "php"
+            "extension": "php",
+            "config": {
+              "root": "html/root/",
+              "target": "localhost:9000"
+            }
           }
         ]
       },
