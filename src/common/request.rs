@@ -6,6 +6,7 @@ use crate::common::method::HTTPMethod;
 pub struct HTTPRequest {
     pub method: HTTPMethod,
     pub path: String,
+    pub query: String,
     pub http_version: String,
     pub host: String,
     pub user_agent: String,
@@ -21,6 +22,7 @@ pub struct HTTPRequest {
 impl HTTPRequest {
     pub fn new(method: HTTPMethod,
                path: String,
+               query: String,
                http_version: String,
                host: String,
                user_agent: String,
@@ -35,6 +37,7 @@ impl HTTPRequest {
         return HTTPRequest{
             method,
             path,
+            query,
             http_version,
             host,
             user_agent,
@@ -53,6 +56,7 @@ impl HTTPRequest {
 
         let mut method: Option<HTTPMethod> = None;
         let mut path: Option<String> = None;
+        let mut query: Option<String> = None;
         let mut http_version: Option<String> = None;
         let mut host: Option<String> = None;
         let mut user_agent: Option<String> = None;
@@ -71,7 +75,15 @@ impl HTTPRequest {
                 if components.len() == 3 {
                     method = HTTPMethod::parse(components[0]);
 
-                    path = Some(String::from(components[1]));
+                    let path_components: Vec<&str> = components[1].split("?").collect();
+                    path = Some(String::from(path_components[0]));
+
+                    if path_components.len() > 1 {
+                        query = Some(String::from(path_components[1]));
+                    }else{
+                        query = Some(String::from(""));
+                    }
+
                     http_version = Some(String::from(components[2]));
                 }else{
                     panic!("wrong first line length")
@@ -159,6 +171,7 @@ impl HTTPRequest {
         return HTTPRequest::new(
             method.unwrap(),
             path.unwrap(),
+            query.unwrap(),
             http_version.unwrap(),
             host.unwrap(),
             user_agent.unwrap(),

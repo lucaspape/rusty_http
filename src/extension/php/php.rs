@@ -50,7 +50,7 @@ impl PHPExtension {
 
         let mut cgi = Command::new("cgi-fcgi");
         cgi.env("SCRIPT_FILENAME", file_path);
-        cgi.env("QUERY_STRING", "");
+        cgi.env("QUERY_STRING", request.query.as_str());
         cgi.env("REQUEST_URI", request.path.as_str());
         cgi.env("REQUEST_METHOD", request.method.get_string());
 
