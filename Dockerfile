@@ -1,5 +1,7 @@
 FROM rust:latest
 
+RUN apt-get update && apt-get install libfcgi-bin -y
+
 RUN USER=root cargo new --bin rusty_http
 WORKDIR /rusty_http
 
