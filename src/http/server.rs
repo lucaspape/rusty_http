@@ -1,4 +1,3 @@
-use std::{thread};
 use std::io::{prelude::*, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::net::Shutdown::Both;
@@ -9,10 +8,13 @@ use crate::common::request::HTTPRequest;
 use crate::http::host::HTTPHost;
 use crate::common::status::HTTPStatus;
 
+use threadpool::ThreadPool;
+
 pub struct HTTPServer {
     bind: String,
     default_host: HTTPHost,
     hosts: Vec<HTTPHost>,
+    thread_pool: ThreadPool
 }
 
 impl HTTPServer {
@@ -20,7 +22,8 @@ impl HTTPServer {
         return HTTPServer {
             bind,
             default_host,
-            hosts
+            hosts,
+            thread_pool: ThreadPool::new(32)
         };
     }
 
@@ -34,7 +37,7 @@ impl HTTPServer {
             let default_host = self.default_host.clone();
             let hosts = self.hosts.to_vec();
 
-            thread::spawn(|| {
+            self.thread_pool.execute(|| {
                 Self::handle_stream(stream, default_host, hosts);
             });
         }
@@ -58,6 +61,7 @@ impl HTTPServer {
         }
 
         let request = HTTPRequest::parse(header);
+        println!("{:?}", request);
 
         let mut host: Option<&HTTPHost> = None;
 
