@@ -35,6 +35,6 @@ pub struct LocationConfig {
     pub path: String,
     pub root: String,
     pub extension: Option<String>,
-    pub index_files: Vec<String>,
+    pub index_files: Option<Vec<String>>,
     pub config: Option<HashMap<String, serde_json::Value>>
 }

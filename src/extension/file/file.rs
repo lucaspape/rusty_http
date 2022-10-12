@@ -98,7 +98,7 @@ impl FileExtension {
                 }
             }
 
-            if args[1] == "true" {
+            if args[0] == "true" {
                 Self::send_index(stream, request.path.as_str(), file_path.as_str(), write_header, write_bytes)
             } else {
                 let msg = "Forbidden";

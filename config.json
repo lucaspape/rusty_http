@@ -25,17 +25,6 @@
               "config": {
                   "target": "localhost:9000"
               }
-          },
-          {
-              "path": "/wordpress/$",
-              "root": "html/root/",
-              "extension": "php",
-              "index_files": [
-                  "index.php"
-              ],
-              "config": {
-                  "target": "localhost:9000"
-              }
           }
         ]
       },

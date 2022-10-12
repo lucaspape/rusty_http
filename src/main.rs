@@ -56,7 +56,13 @@ fn create_host(config: &HostConfig) -> HTTPHost {
         let mut extension = get_extension(extension_name);
         extension.configure(l.config.clone().unwrap());
 
-        host_locations.push(HTTPLocation::new(l.path.as_str(), l.root.as_str(), extension.handler(), l.index_files.clone()))
+        let mut index_files = l.index_files.clone();
+
+        if let None = index_files {
+            index_files = Some(Vec::new());
+        }
+
+        host_locations.push(HTTPLocation::new(l.path.as_str(), l.root.as_str(), extension.handler(), index_files.unwrap()))
     }
 
     return HTTPHost::new(config.server_name.as_str(), host_locations);
