@@ -83,6 +83,8 @@ impl CGIExtension {
 
         let mut cgi = Command::new("cgi-fcgi")
             .env("SCRIPT_FILENAME", file_path.clone())
+            .env("SERVER_PROTOCOL", request.http_version.as_str())
+            .env("HTTP_X_FORWARDED_PROTO", "")
             .env("QUERY_STRING", request.query.as_str())
             .env("REQUEST_URI", request.path.as_str())
             .env("REQUEST_METHOD", request.method.get_string())
@@ -92,6 +94,7 @@ impl CGIExtension {
             .env("HTTP_USER_AGENT", request.user_agent.clone())
             .env("HTTP_HOST", request.host.clone())
             .env("HTTP_COOKIE", request.cookie.clone())
+            .env("SCRIPT_NAME", request.path.as_str())
             .arg("-bind")
             .arg("-connect")
             .arg(args[0].clone())
