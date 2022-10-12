@@ -15,4 +15,6 @@ COPY ./src ./src
 RUN rm ./target/release/deps/rusty_http*
 RUN cargo install --path .
 
+USER www-data
+
 CMD ["rusty_http"]
