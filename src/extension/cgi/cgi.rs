@@ -88,6 +88,8 @@ impl CGIExtension {
             .env("REQUEST_METHOD", request.method.get_string())
             .env("CONTENT_LENGTH", format!("{}", body_len))
             .env("CONTENT_TYPE", request.content_type.clone().get())
+            .env("SERVER_NAME", request.host.clone())
+            .env("HTTP_USER_AGENT", request.user_agent.clone())
             .env("HTTP_HOST", request.host.clone())
             .env("HTTP_COOKIE", request.cookie.clone())
             .arg("-bind")
@@ -105,9 +107,6 @@ impl CGIExtension {
             for l in body.iter() {
                 i.write_all(l.as_bytes()).unwrap();
             }
-
-            println!("{}", request.content_type.clone().get());
-            println!("{:?}", body);
         }
 
         let out = cgi.wait_with_output().unwrap();
