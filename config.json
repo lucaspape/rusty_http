@@ -6,36 +6,36 @@
         "server_name": "default",
         "locations": [
           {
-            "path": "/",
-            "config": {
+              "path": "/",
               "root": "html/root/",
-              "index": true,
               "index_files": [
-                "index.html"
-              ]
-            }
+                  "index.html"
+              ],
+              "config": {
+                  "index": true
+              }
           },
           {
-            "path": "([a-zA-Z0-9\\s_\\\\.\\-\\(\\):])+(.php)$",
-            "extension": "php",
-            "config": {
+              "path": "([a-zA-Z0-9\\s_\\\\.\\-\\(\\):])+(.php)$",
               "root": "html/root/",
-              "target": "localhost:9000",
+              "extension": "php",
               "index_files": [
-                "index.php"
-              ]
-            }
+                  "index.php"
+              ],
+              "config": {
+                  "target": "localhost:9000"
+              }
           },
           {
-            "path": "/wordpress/$",
-            "extension": "php",
-            "config": {
+              "path": "/wordpress/$",
               "root": "html/root/",
-              "target": "localhost:9000",
+              "extension": "php",
               "index_files": [
-                "index.php"
-              ]
-            }
+                  "index.php"
+              ],
+              "config": {
+                  "target": "localhost:9000"
+              }
           }
         ]
       },

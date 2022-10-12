@@ -8,6 +8,8 @@ pub struct ExtensionHandler {
     pub request: fn(
         args: Vec<String>,
         location: &str,
+        root: &str,
+        index_files: Vec<String>,
         stream: &TcpStream,
         request: &HTTPRequest,
         body: &Vec<String>,

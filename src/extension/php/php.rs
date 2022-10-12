@@ -11,31 +11,18 @@ use crate::Extension;
 use crate::extension::extension_handler::ExtensionHandler;
 
 pub struct PHPExtension {
-    pub root: String,
-    pub target: String,
-    pub index_files: Vec<String>
+    pub target: String
 }
 
 impl Extension for PHPExtension {
     fn configure(&mut self, config: HashMap<String, Value>) {
-        self.root = String::from(config.get("root").expect("No root in php extension").as_str().unwrap());
         self.target = String::from(config.get("target").expect("No target in php extension").as_str().unwrap());
-
-        for index_file in config.get("index_files").expect("No index_files in file extension").as_array().unwrap().iter() {
-            self.index_files.push(String::from(index_file.as_str().unwrap()));
-        }
     }
 
     fn handler(&self) -> ExtensionHandler {
-        let mut index_files = String::from("");
-        for file in self.index_files.iter() {
-            index_files += file.as_str();
-            index_files += ",";
-        }
-
         return ExtensionHandler {
             request: Self::handle,
-            args: Vec::from([self.root.clone(), self.target.clone(), index_files])
+            args: Vec::from([self.target.clone()])
         };
     }
 
@@ -48,6 +35,8 @@ impl PHPExtension {
     fn handle(
         args: Vec<String>,
         location: &str,
+        root: &str,
+        index_files: Vec<String>,
         stream: &TcpStream,
         request: &HTTPRequest,
         body: &Vec<String>,
@@ -60,7 +49,7 @@ impl PHPExtension {
             request_path = request_path.replacen(location, "", 1);
         }
 
-        let mut file_path = args[0].clone() + request_path.as_str();
+        let mut file_path = String::from(root) + request_path.as_str();
 
         let path = Path::new(file_path.as_str());
 
@@ -75,8 +64,8 @@ impl PHPExtension {
         }
 
         if path.is_dir() {
-            for index_file in args[2].split(",") {
-                let file_path_index = String::from(file_path.clone()) + "/" + index_file;
+            for index_file in index_files {
+                let file_path_index = String::from(file_path.clone()) + "/" + index_file.as_str();
                 let path = Path::new(file_path_index.as_str());
 
                 if path.exists() && !path.is_dir() {
@@ -103,7 +92,7 @@ impl PHPExtension {
             .env("HTTP_COOKIE", request.cookie.clone())
             .arg("-bind")
             .arg("-connect")
-            .arg(args[1].clone())
+            .arg(args[0].clone())
             .stdin(Stdio::piped())
             .stderr(Stdio::piped())
             .stdout(Stdio::piped())

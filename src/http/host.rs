@@ -1,10 +1,9 @@
 use std::net::TcpStream;
-use regex::Regex;
 use crate::common::mime::MimeType;
-use crate::common::request::{HTTPRequest};
+use crate::common::request::HTTPRequest;
 use crate::http::location::HTTPLocation;
 use crate::common::status::HTTPStatus;
-use crate::common::status::HTTPStatus::{NotFound};
+use crate::common::status::HTTPStatus::NotFound;
 
 #[derive(Clone)]
 pub struct HTTPHost {
@@ -28,20 +27,20 @@ impl HTTPHost {
                           write_bytes: fn(&TcpStream, Vec<u8>,) -> bool
     ) -> bool {
         let mut location: Option<&HTTPLocation> = None;
+        let mut priority: usize = 0;
 
         for l in self.locations.iter() {
-            let r = Regex::new(format!(r"{}", &*l.location).as_str()).unwrap();
+            let (can_handle, p) = l.can_handle(request.path.as_str());
 
-            if r.is_match(request.path.as_str()) {
-                let empty = if let None = location {
-                    true
-                } else {
-                    false
-                };
+            let empty = if let None = location {
+                true
+            } else {
+                false
+            };
 
-                if empty || location.unwrap().location.len() < l.location.len() {
-                    location = Some(l);
-                }
+            if can_handle && (empty || p > priority) {
+                location = Some(l);
+                priority = p;
             }
         }
 

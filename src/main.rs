@@ -56,7 +56,7 @@ fn create_host(config: &HostConfig) -> HTTPHost {
         let mut extension = get_extension(extension_name);
         extension.configure(l.config.clone().unwrap());
 
-        host_locations.push(HTTPLocation::new(l.path.as_str(), extension.handler()))
+        host_locations.push(HTTPLocation::new(l.path.as_str(), l.root.as_str(), extension.handler(), l.index_files.clone()))
     }
 
     return HTTPHost::new(config.server_name.as_str(), host_locations);
@@ -66,16 +66,12 @@ fn get_extension(name: &str) -> Box<dyn Extension> {
     return match name {
         "file" => {
             Box::new(FileExtension{
-                root: "".to_string(),
-                index: false,
-                index_files: Vec::new()
+                index: false
             })
         },
         "php" => {
             Box::new(PHPExtension{
-                root: "".to_string(),
-                target: "".to_string(),
-                index_files: Vec::new()
+                target: "".to_string()
             })
         },
         _ => {
