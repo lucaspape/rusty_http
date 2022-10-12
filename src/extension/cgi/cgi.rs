@@ -84,7 +84,10 @@ impl CGIExtension {
         let mut cgi = Command::new("cgi-fcgi")
             .env("SCRIPT_FILENAME", file_path.clone())
             .env("SERVER_PROTOCOL", request.http_version.as_str())
-            .env("HTTP_X_FORWARDED_PROTO", "")
+
+            //TODO dont hardcode this
+            .env("HTTP_X_FORWARDED_PROTO", "https")
+
             .env("QUERY_STRING", request.query.as_str())
             .env("REQUEST_URI", request.path.as_str())
             .env("REQUEST_METHOD", request.method.get_string())
