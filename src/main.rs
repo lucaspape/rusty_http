@@ -2,13 +2,13 @@ extern crate core;
 
 use std::thread;
 use std::time::Duration;
-use crate::config::{HostConfig, RustyHTTPConfig};
-use crate::extension::extension::Extension;
-use crate::extension::file::file::FileExtension;
-use crate::extension::php::php::PHPExtension;
-use crate::http::host::HTTPHost;
-use crate::http::location::HTTPLocation;
-use crate::http::server::HTTPServer;
+use config::{HostConfig, RustyHTTPConfig};
+use extension::extension::Extension;
+use extension::file::file::FileExtension;
+use extension::cgi::cgi::CGIExtension;
+use http::host::HTTPHost;
+use http::location::HTTPLocation;
+use http::server::HTTPServer;
 
 mod http;
 mod config;
@@ -75,8 +75,8 @@ fn get_extension(name: &str) -> Box<dyn Extension> {
                 index: false
             })
         },
-        "php" => {
-            Box::new(PHPExtension{
+        "cgi" => {
+            Box::new(CGIExtension{
                 target: "".to_string()
             })
         },

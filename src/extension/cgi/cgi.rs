@@ -10,13 +10,13 @@ use crate::common::status::HTTPStatus;
 use crate::Extension;
 use crate::extension::extension_handler::ExtensionHandler;
 
-pub struct PHPExtension {
+pub struct CGIExtension {
     pub target: String
 }
 
-impl Extension for PHPExtension {
+impl Extension for CGIExtension {
     fn configure(&mut self, config: HashMap<String, Value>) {
-        self.target = String::from(config.get("target").expect("No target in php extension").as_str().unwrap());
+        self.target = String::from(config.get("target").expect("No target in cgi extension").as_str().unwrap());
     }
 
     fn handler(&self) -> ExtensionHandler {
@@ -27,11 +27,11 @@ impl Extension for PHPExtension {
     }
 
     fn name(&self) -> String {
-        String::from("php")
+        String::from("cgi")
     }
 }
 
-impl PHPExtension {
+impl CGIExtension {
     fn handle(
         args: Vec<String>,
         location: &str,
